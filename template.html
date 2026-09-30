@@ -41,7 +41,19 @@
   #chart rect.song:hover, #chart rect.song.hl { stroke: #fff; stroke-width: 1.5; }
   #chart .yr { cursor: pointer; }
   #chart .yr:hover { fill: var(--text); }
-  .hint { color: var(--muted); font-size: 12px; margin: 6px 2px 12px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 6px 2px 10px; }
+  .years { display: flex; gap: 4px; overflow-x: auto; padding: 2px 2px 8px; margin: 0 0 8px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  .ytab { flex: none; position: relative; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px;
+    padding: 4px 9px 8px; font: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.15; min-width: 52px; }
+  .ytab .y { font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .ytab .n { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ytab .u { position: absolute; left: 7px; right: 7px; bottom: 3px; height: 3px; border-radius: 2px; }
+  .ytab:hover { background: #20232d; }
+  .ytab[aria-selected="true"] { background: #2b2f3d; border-color: var(--original); }
+  .ytab[aria-disabled="true"] { opacity: .3; cursor: default; }
+  .ytab[aria-disabled="true"]:hover { background: var(--panel); }
+  .ytab:focus-visible { outline: 2px solid var(--original); outline-offset: 1px; }
+  .ytab.all { position: sticky; left: 0; z-index: 1; box-shadow: 8px 0 8px -2px var(--bg); }
 
   .split { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; height: max(440px, calc(100vh - 150px)); }
   .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: auto; min-height: 0; }
@@ -129,7 +141,8 @@
 
 <main>
   <div id="chart-wrap"><svg id="chart" role="img" aria-label="Song debuts over time"></svg></div>
-  <div class="hint">Each square is one song's debut. <b>Drag</b> across the chart to pick a date range, <b>click a year</b> to zoom to it, <b>click a square</b> for details. In the table, ↑/↓ move through songs.</div>
+  <div class="hint">Each square is one song's debut. Pick a <b>year tab</b> or <b>drag</b> across the chart for any date range; <b>click a square</b> for details. ←/→ step through years; in the table, ↑/↓ step through songs.</div>
+  <div class="years" id="years" role="tablist" aria-label="Debut year"></div>
   <div class="split">
     <div class="pane" id="list-pane" tabindex="0">
       <table>
@@ -394,6 +407,87 @@ svg.addEventListener("click", (ev) => {
   if (i !== undefined) select(+i, true);
 });
 
+// ---------- year tabs ----------
+// Tabs are a view of state.range, not their own filter: a tab is selected only when the range is exactly
+// that calendar year, "All" when there is no range, and nothing when a dragged range spans something else.
+const yearsEl = document.getElementById("years");
+const yearRange = (y) => [Date.UTC(y, 0, 1), Date.UTC(y, 11, 31)];
+const eraOf = (d) => {
+  for (const e of DATA.eras) if ((!e.start || d >= e.start) && (!e.end || d <= e.end)) return e.name;
+  return "Between";
+};
+// Underline coloured by which era(s) the year's days belong to, so 2005 and 2025 show their hand-offs.
+function eraGradient(y) {
+  const cuts = new Set([`${y}-01-01`, `${y + 1}-01-01`]);
+  for (const e of DATA.eras) {
+    if (e.start && e.start.startsWith(String(y))) cuts.add(e.start);
+    if (e.end && e.end.startsWith(String(y))) cuts.add(isoDay(dayNum(e.end) + 86400000));
+  }
+  const pts = [...cuts].sort(), span = dayNum(pts[pts.length - 1]) - dayNum(pts[0]);
+  const stops = [];
+  for (let k = 0; k < pts.length - 1; k++) {
+    const c = eraColor(eraOf(pts[k]));
+    const a = ((dayNum(pts[k]) - dayNum(pts[0])) / span) * 100, b = ((dayNum(pts[k + 1]) - dayNum(pts[0])) / span) * 100;
+    stops.push(`${c} ${a.toFixed(1)}%`, `${c} ${b.toFixed(1)}%`);
+  }
+  return stops.length === 2 ? stops[0].split(" ")[0] : `linear-gradient(90deg, ${stops.join(", ")})`;
+}
+const yearTabs = [];
+function addTab(year) {
+  const b = document.createElement("button");
+  b.className = "ytab" + (year === null ? " all" : "");
+  b.setAttribute("role", "tab");
+  b.innerHTML = `<span class="y">${year === null ? "All" : year}</span><span class="n"></span>` + (year === null ? "" : `<span class="u" style="background:${eraGradient(year)}"></span>`);
+  b.addEventListener("click", () => chooseYear(year));
+  yearsEl.appendChild(b);
+  yearTabs.push({ year, el: b });
+}
+addTab(null);
+for (let y = firstYear; y <= lastYear; y++) addTab(y);
+
+function activeYear() {
+  if (!state.range) return null;
+  const y = new Date(state.range[0]).getUTCFullYear(), [a, b] = yearRange(y);
+  return state.range[0] === a && state.range[1] === b ? y : undefined; // undefined = custom range
+}
+function chooseYear(year, focus) {
+  const tab = yearTabs.find((t) => t.year === year);
+  if (tab.el.getAttribute("aria-disabled") === "true") return;
+  setRange(year === null ? null : yearRange(year));
+  if (focus) tab.el.focus();
+}
+let lastScrolledYear;
+function updateYearTabs() {
+  const perYear = {};
+  let total = 0;
+  for (const s of songs) if (matches(s, "range")) { total++; perYear[s.date.slice(0, 4)] = (perYear[s.date.slice(0, 4)] || 0) + 1; }
+  const active = activeYear();
+  for (const { year, el } of yearTabs) {
+    const n = year === null ? total : perYear[year] || 0;
+    const selected = year === active;
+    el.querySelector(".n").textContent = n;
+    el.setAttribute("aria-selected", selected);
+    el.setAttribute("aria-disabled", !n && !selected);
+    el.tabIndex = selected || (active === undefined && year === null) ? 0 : -1;
+    el.title = year === null ? "All years" : `${year}: ${n} debut${n === 1 ? "" : "s"} matching the current filters`;
+  }
+  if (active !== lastScrolledYear) {
+    lastScrolledYear = active;
+    const t = yearTabs.find((t) => t.year === active);
+    if (t && active !== null) yearsEl.scrollTo({ left: t.el.offsetLeft - yearsEl.clientWidth / 2 + t.el.offsetWidth / 2, behavior: "smooth" });
+  }
+}
+yearsEl.addEventListener("keydown", (ev) => {
+  const moves = { ArrowRight: 1, ArrowLeft: -1, Home: -Infinity, End: Infinity };
+  if (!(ev.key in moves)) return;
+  ev.preventDefault();
+  const enabled = yearTabs.filter((t) => t.el.getAttribute("aria-disabled") !== "true");
+  const cur = enabled.findIndex((t) => t.el === document.activeElement);
+  const step = moves[ev.key];
+  const next = step === -Infinity ? 0 : step === Infinity ? enabled.length - 1 : Math.min(enabled.length - 1, Math.max(0, cur + step));
+  chooseYear(enabled[next].year, true);
+});
+
 // ---------- table ----------
 const rowsEl = document.getElementById("rows");
 const listPane = document.getElementById("list-pane");
@@ -540,6 +634,7 @@ let current = songs;
 function render() {
   current = songs.filter((s) => matches(s));
   updateControls();
+  updateYearTabs();
   renderChart(songs.filter((s) => matches(s, "range")));
   renderTable(current);
   renderDetail();
