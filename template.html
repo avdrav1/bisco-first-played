@@ -6,60 +6,109 @@
 <title>FIRST TIME PLAYED · The Disco Biscuits</title>
 <style>
   :root {
-    --bg: #0e0f13; --panel: #171920; --line: #2a2d38; --text: #e8e6e1; --muted: #8b8f9c;
+    --bg: #0e0f13; --panel: #171920; --panel2: #1d2029; --line: #2a2d38; --text: #e8e6e1; --muted: #8b8f9c;
     --original: #f5a524; --cover: #2dd4bf; --mashup: #a78bfa; --improvisation: #f472b6; --unknown: #9ca3af;
     --sammy: #3b82f6; --allen: #22c55e; --marlon: #ef4444; --between: #6b7280;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
   a { color: inherit; }
-  header { padding: 28px 24px 8px; }
-  h1 { margin: 0; font-size: 34px; letter-spacing: .06em; font-weight: 900; }
+  header { padding: 22px 24px 6px; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  h1 { margin: 0; font-size: 30px; letter-spacing: .06em; font-weight: 900; }
   h1 span { color: var(--original); }
-  .sub { color: var(--muted); margin-top: 4px; }
+  .sub { color: var(--muted); }
   .controls { position: sticky; top: 0; z-index: 5; background: rgba(14,15,19,.94); backdrop-filter: blur(6px);
-    border-bottom: 1px solid var(--line); padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+    border-bottom: 1px solid var(--line); padding: 10px 24px; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
   .group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .group > label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-right: 2px; }
-  .chip { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px; padding: 4px 11px;
+  .chip { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px; padding: 3px 10px;
     cursor: pointer; font: inherit; display: inline-flex; gap: 6px; align-items: center; }
   .chip .n { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
   .chip[aria-pressed="false"] { opacity: .4; }
-  .chip .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-  select, input[type=search] { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: inherit; }
-  select { max-width: 260px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+  .sw.mob { display: none; margin-right: 6px; }
+  col.c-date { width: 82px; } col.c-title { width: 27%; } col.c-kind { width: 118px; } col.c-author { width: 22%; } col.c-plays { width: 60px; }
+  select, input[type=search] { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font: inherit; }
+  select { max-width: 240px; }
+  #range { display: none; border-color: var(--original); }
+  #range.on { display: inline-flex; }
   .count { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-  .reset { background: none; border: none; color: var(--muted); cursor: pointer; font: inherit; text-decoration: underline; }
-  main { padding: 16px 24px 60px; }
-  #chart-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 8px 0; overflow-x: auto; }
-  #chart { display: block; width: 100%; }
+  .linkbtn { background: none; border: none; color: var(--muted); cursor: pointer; font: inherit; text-decoration: underline; padding: 0; }
+  main { padding: 12px 24px 24px; }
+  #chart-wrap { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 0; overflow-x: auto; }
+  #chart { display: block; touch-action: pan-y; cursor: crosshair; user-select: none; }
   #chart rect.song { cursor: pointer; }
   #chart rect.song:hover, #chart rect.song.hl { stroke: #fff; stroke-width: 1.5; }
-  .hint { color: var(--muted); font-size: 12px; margin: 6px 2px 18px; }
+  #chart .yr { cursor: pointer; }
+  #chart .yr:hover { fill: var(--text); }
+  .hint { color: var(--muted); font-size: 12px; margin: 6px 2px 12px; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; height: max(440px, calc(100vh - 150px)); }
+  .pane { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: auto; min-height: 0; }
+  .pane:focus { outline: 1px solid #3a3f4e; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { position: sticky; top: 0; z-index: 1; background: var(--panel2); text-align: left; font-weight: 600; color: var(--muted);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px; border-bottom: 1px solid var(--line);
+    cursor: pointer; white-space: nowrap; user-select: none; }
+  thead th:hover { color: var(--text); }
+  thead th[aria-sort] { color: var(--text); }
+  thead th[aria-sort="ascending"]::after { content: " ▲"; font-size: 9px; }
+  thead th[aria-sort="descending"]::after { content: " ▼"; font-size: 9px; }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td { padding: 5px 10px; border-bottom: 1px solid #20232c; vertical-align: top; }
+  tbody tr.row { cursor: pointer; }
+  tbody tr.row:hover { background: #20232d; }
+  tbody tr.row.sel { background: #2b2f3d; }
+  tbody tr.yr td { background: var(--bg); color: var(--text); font-weight: 800; font-size: 13px; padding: 10px 10px 4px; letter-spacing: .04em; }
+  tbody tr.yr td span { color: var(--muted); font-weight: 400; margin-left: 8px; }
+  td.date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.title { font-weight: 600; }
+  td .m, .m { color: var(--muted); }
+  td.kind { white-space: nowrap; }
+  table { table-layout: fixed; }
+  .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+
+  #detail { padding: 16px 18px; }
+  #detail h2 { margin: 6px 0 2px; font-size: 22px; line-height: 1.2; }
+  #detail h2 a { text-decoration: none; }
+  #detail h2 a:hover { text-decoration: underline; }
+  #detail h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 6px; font-weight: 600; }
+  .badge { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; color: #111; font-weight: 700; }
+  .facts { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; margin-top: 12px; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; }
+  .facts a { text-decoration: none; border-bottom: 1px dotted var(--muted); }
+  .close { float: right; }
+  .items { list-style: none; margin: 0; padding: 0; }
+  .items li { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; }
+  .items li:hover { background: #22252f; }
+  .items li .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .items li .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 38px; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+  .bar .track { height: 8px; background: #22252f; border-radius: 4px; overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 4px; }
+  .bar .n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .big { font-size: 28px; font-weight: 900; }
+
   #tip { position: fixed; pointer-events: none; z-index: 20; background: #0b0c10; border: 1px solid var(--line); border-radius: 8px;
     padding: 8px 10px; max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,.5); display: none; font-size: 13px; }
   #tip b { font-size: 14px; }
-  #tip .m { color: var(--muted); }
-  .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 1px 6px; border-radius: 4px; color: #111; font-weight: 700; }
-  .year { font-size: 22px; font-weight: 900; margin: 26px 0 8px; letter-spacing: .04em; display: flex; gap: 10px; align-items: baseline; }
-  .year .n { color: var(--muted); font-size: 13px; font-weight: 400; }
-  .show { display: grid; grid-template-columns: 130px 1fr; gap: 4px 16px; padding: 10px 12px; border-left: 3px solid var(--line);
-    margin: 0 0 6px 4px; background: var(--panel); border-radius: 0 10px 10px 0; transition: background .6s; }
-  .show.flash { background: #2b2f3d; }
-  .show .d { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .show .era { font-size: 11px; color: var(--muted); }
-  .show .v a { text-decoration: none; font-weight: 600; }
-  .show .v a:hover { text-decoration: underline; }
-  .show .v .p { color: var(--muted); }
-  .songs { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }
-  .song-chip { display: inline-flex; flex-direction: column; border: 1px solid var(--line); border-left: 4px solid; border-radius: 6px;
-    padding: 3px 8px; text-decoration: none; background: #1d2029; }
-  .song-chip:hover { background: #262a36; }
-  .song-chip .t { font-weight: 600; }
-  .song-chip .a { color: var(--muted); font-size: 12px; }
-  .empty { color: var(--muted); padding: 30px 0; text-align: center; }
-  footer { color: var(--muted); font-size: 12px; padding: 0 24px 30px; }
-  @media (max-width: 640px) { .show { grid-template-columns: 1fr; } .songs { grid-column: 1; } h1 { font-size: 26px; } }
+  footer { color: var(--muted); font-size: 12px; padding: 0 24px 24px; }
+
+  @media (max-width: 1250px) { .split { grid-template-columns: minmax(0, 1fr) 290px; } }
+  @media (max-width: 900px) {
+    .split { grid-template-columns: 1fr; height: auto; }
+    #list-pane { height: 65vh; }
+    .controls { position: static; }
+    .c-venue, .c-kind, .c-plays { display: none; }
+    table { table-layout: auto; }
+    col.c-date, col.c-title, col.c-author { width: auto; }
+    tbody td, thead th { padding-left: 6px; padding-right: 6px; }
+    td.title .clip { max-width: 40vw; } td.author .clip { max-width: 22vw; }
+    .sw.mob { display: inline-block; }
+    h1 { font-size: 24px; }
+  }
 </style>
 </head>
 <body>
@@ -73,17 +122,28 @@
   <div class="group" id="kinds"><label>Type</label></div>
   <div class="group"><label for="author">Author</label><select id="author"></select></div>
   <div class="group"><label for="q">Song</label><input type="search" id="q" placeholder="search titles…"></div>
-  <div class="group"><label for="order">Order</label>
-    <select id="order"><option value="asc">Oldest first</option><option value="desc">Newest first</option></select>
-  </div>
-  <button class="reset" id="reset">reset</button>
+  <button class="chip" id="range" title="Clear date range"></button>
+  <button class="linkbtn" id="reset">reset</button>
   <div class="count" id="count"></div>
 </div>
 
 <main>
   <div id="chart-wrap"><svg id="chart" role="img" aria-label="Song debuts over time"></svg></div>
-  <div class="hint">Each square is one song's debut, placed at its first-played date. Hover for details, click to jump to that show.</div>
-  <div id="list"></div>
+  <div class="hint">Each square is one song's debut. <b>Drag</b> across the chart to pick a date range, <b>click a year</b> to zoom to it, <b>click a square</b> for details. In the table, ↑/↓ move through songs.</div>
+  <div class="split">
+    <div class="pane" id="list-pane" tabindex="0">
+      <table>
+        <colgroup><col class="c-date"><col class="c-title"><col class="c-kind"><col class="c-author"><col class="c-venue"><col class="c-plays"></colgroup>
+        <thead><tr>
+          <th data-k="date">Debut</th><th data-k="title">Song</th><th data-k="kind" class="c-kind">Type</th>
+          <th data-k="author">Author</th><th data-k="venue" class="c-venue">Venue</th>
+          <th data-k="plays" class="num c-plays">Plays</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <aside class="pane" id="detail"></aside>
+  </div>
 </main>
 <footer id="foot"></footer>
 <div id="tip"></div>
@@ -94,7 +154,7 @@ const DATA = /*__DATA__*/null;
 const KINDS = ["original", "cover", "mashup", "improvisation"];
 const KIND_LABEL = { original: "Original", cover: "Cover", mashup: "Mashup", improvisation: "Improvisation", unknown: "Unknown" };
 const ERA_NAMES = ["Sammy", "Allen", "Marlon", "Between"];
-const ERA_LABEL = { Sammy: "Sammy", Allen: "Allen", Marlon: "Marlon", Between: "Between eras" };
+const ERA_LABEL = { Sammy: "Sammy Era", Allen: "Allen Era", Marlon: "Marlon Era", Between: "Between eras" };
 const NO_AUTHOR = "__none";
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -102,28 +162,34 @@ const kindColor = (k) => css("--" + (KIND_LABEL[k] ? k : "unknown"));
 const eraColor = (e) => css("--" + e.toLowerCase());
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (d) => { const [y, m, dd] = d.split("-"); return `${MONTHS[+m - 1]} ${+dd}, ${y}`; };
+const fmtShort = (d) => { const [y, m, dd] = d.split("-"); return `${+m}/${+dd}/${y.slice(2)}`; };
 const dayNum = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10));
+const isoDay = (t) => new Date(t).toISOString().slice(0, 10);
+const byTitle = (a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
 
 const songs = DATA.songs;
 songs.forEach((s, i) => { s.i = i; s.t = dayNum(s.date); s.authorNames = s.authors.map((a) => a.name); });
+const byShow = new Map();
+for (const s of songs) { if (!byShow.has(s.show)) byShow.set(s.show, []); byShow.get(s.show).push(s); }
 const kindSet = new Set(songs.map((s) => s.kind));
 const presentKinds = [...KINDS.filter((k) => kindSet.has(k)), ...[...kindSet].filter((k) => !KINDS.includes(k))];
 const presentEras = ERA_NAMES.filter((e) => songs.some((s) => s.era === e));
+const eraInfo = Object.fromEntries(DATA.eras.map((e) => [e.name, e]));
 
-const state = { eras: new Set(presentEras), kinds: new Set(presentKinds), author: "", q: "", order: "asc" };
+const initial = () => ({ eras: new Set(presentEras), kinds: new Set(presentKinds), author: "", q: "", range: null, sort: { key: "date", dir: 1 }, sel: null });
+let state = initial();
 
-const eraRange = Object.fromEntries(DATA.eras.map((e) => [e.name, e]));
 function eraTitle(e) {
-  if (e === "Between") return "Between eras (fall 2005 drummer search, fall 2025 transition)";
-  const r = eraRange[e];
+  if (e === "Between") return "Between eras: the fall-2005 drummer search and the fall-2025 transition";
+  const r = eraInfo[e];
   return `${e} Era · ${r.drummer} · ${r.start ? fmt(r.start) : "start"} – ${r.end ? fmt(r.end) : "present"}`;
 }
 
 document.getElementById("sub").innerHTML =
-  `The Disco Biscuits · ${songs.length} songs, each at the show where it was first played · data: ` +
-  `<a href="${DATA.site}/songs">Biscuits Internet Project</a>, pulled ${esc(DATA.fetched)}`;
+  `The Disco Biscuits · ${songs.length} songs at the show where each was first played · data: ` +
+  `<a href="${DATA.site}/songs" target="_blank" rel="noopener">Biscuits Internet Project</a>, pulled ${esc(DATA.fetched)}`;
 document.getElementById("foot").textContent =
-  "Era boundaries match BIP's own Sammy/Allen/Marlon filters. Songs are linked to their BIP song pages, shows to their setlists.";
+  "Era boundaries match BIP's own Sammy/Allen/Marlon filters. Song and show links open on BIP.";
 
 // ---------- filtering ----------
 function matches(s, skip) {
@@ -133,51 +199,48 @@ function matches(s, skip) {
     if (state.author === NO_AUTHOR ? s.authors.length : !s.authorNames.includes(state.author)) return false;
   }
   if (state.q && !s.title.toLowerCase().includes(state.q)) return false;
+  if (skip !== "range" && state.range && (s.t < state.range[0] || s.t > state.range[1])) return false;
   return true;
 }
 
 // ---------- controls ----------
-function chip(container, key, label, color, set, onToggle) {
+function chip(container, key, label, color, setName) {
   const b = document.createElement("button");
   b.className = "chip"; b.dataset.key = key;
-  b.innerHTML = `${color ? `<span class="sw" style="background:${color}"></span>` : ""}${esc(label)} <span class="n"></span>`;
+  b.innerHTML = `<span class="sw" style="background:${color}"></span>${esc(label)} <span class="n"></span>`;
   b.addEventListener("click", (ev) => {
+    const set = state[setName];
     // Shift/alt-click isolates a single value; plain click toggles.
     if (ev.shiftKey || ev.altKey) { set.clear(); set.add(key); }
     else if (set.has(key)) set.delete(key); else set.add(key);
-    onToggle();
+    render();
   });
   container.appendChild(b);
+  return b;
 }
 const erasEl = document.getElementById("eras"), kindsEl = document.getElementById("kinds");
-presentEras.forEach((e) => chip(erasEl, e, ERA_LABEL[e], eraColor(e), state.eras, render));
-presentKinds.forEach((k) => chip(kindsEl, k, KIND_LABEL[k] || k, kindColor(k), state.kinds, render));
-erasEl.querySelectorAll(".chip").forEach((b) => (b.title = eraTitle(b.dataset.key)));
+presentEras.forEach((e) => (chip(erasEl, e, ERA_LABEL[e].replace(" Era", ""), eraColor(e), "eras").title = eraTitle(e)));
+presentKinds.forEach((k) => chip(kindsEl, k, KIND_LABEL[k] || k, kindColor(k), "kinds"));
 
 const authorEl = document.getElementById("author");
 authorEl.addEventListener("change", () => { state.author = authorEl.value; render(); });
 const qEl = document.getElementById("q");
 qEl.addEventListener("input", () => { state.q = qEl.value.trim().toLowerCase(); render(); });
-const orderEl = document.getElementById("order");
-orderEl.addEventListener("change", () => { state.order = orderEl.value; renderList(current); });
-document.getElementById("reset").addEventListener("click", () => {
-  state.eras = new Set(presentEras); state.kinds = new Set(presentKinds); state.author = ""; state.q = ""; state.order = "asc";
-  qEl.value = ""; orderEl.value = "asc";
-  // chips hold references to the old sets; rebuild them
-  erasEl.querySelectorAll(".chip").forEach((b) => b.remove()); kindsEl.querySelectorAll(".chip").forEach((b) => b.remove());
-  presentEras.forEach((e) => chip(erasEl, e, ERA_LABEL[e], eraColor(e), state.eras, render));
-  presentKinds.forEach((k) => chip(kindsEl, k, KIND_LABEL[k] || k, kindColor(k), state.kinds, render));
-  erasEl.querySelectorAll(".chip").forEach((b) => (b.title = eraTitle(b.dataset.key)));
-  render();
-});
+const rangeEl = document.getElementById("range");
+rangeEl.addEventListener("click", () => setRange(null));
+document.getElementById("reset").addEventListener("click", () => { state = initial(); qEl.value = ""; render(); });
+
+function setRange(r) { state.range = r; render(); }
+function setAuthor(name) { state.author = name; render(); }
 
 function updateControls() {
   const eraN = {}, kindN = {}, authN = new Map();
-  let noAuth = 0;
+  let noAuth = 0, authTotal = 0;
   for (const s of songs) {
     if (matches(s, "era")) eraN[s.era] = (eraN[s.era] || 0) + 1;
     if (matches(s, "kind")) kindN[s.kind] = (kindN[s.kind] || 0) + 1;
     if (matches(s, "author")) {
+      authTotal++;
       if (!s.authors.length) noAuth++;
       for (const a of s.authorNames) authN.set(a, (authN.get(a) || 0) + 1);
     }
@@ -190,21 +253,30 @@ function updateControls() {
   });
   if (state.author && state.author !== NO_AUTHOR && !authN.has(state.author)) authN.set(state.author, 0);
   const opts = [...authN].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  const total = songs.filter((s) => matches(s, "author")).length;
   authorEl.innerHTML =
-    `<option value="">All authors (${total})</option>` +
+    `<option value="">All authors (${authTotal})</option>` +
     opts.map(([n, c]) => `<option value="${esc(n)}">${esc(n)} (${c})</option>`).join("") +
     (noAuth || state.author === NO_AUTHOR ? `<option value="${NO_AUTHOR}">(no author listed) (${noAuth})</option>` : "");
   authorEl.value = state.author;
+  rangeEl.classList.toggle("on", !!state.range);
+  if (state.range) rangeEl.innerHTML = `${esc(rangeLabel(state.range))} <span class="n">✕</span>`;
+}
+
+function rangeLabel([a, b]) {
+  const da = isoDay(a), db = isoDay(b);
+  if (da.slice(5) === "01-01" && db.slice(5) === "12-31" && da.slice(0, 4) === db.slice(0, 4)) return da.slice(0, 4);
+  if (da.slice(5) === "01-01" && db.slice(5) === "12-31") return `${da.slice(0, 4)}–${db.slice(0, 4)}`;
+  return `${fmtShort(da)} – ${fmtShort(db)}`;
 }
 
 // ---------- chart ----------
 const svg = document.getElementById("chart");
 const tip = document.getElementById("tip");
 const NS = "http://www.w3.org/2000/svg";
-const CELL = 8, PITCH = 9, TOP = 30, AXIS = 26;
+const CELL = 7, PITCH = 8, TOP = 26, AXIS = 24;
 const firstYear = +songs[0].date.slice(0, 4), lastYear = +songs[songs.length - 1].date.slice(0, 4);
 const T0 = Date.UTC(firstYear, 0, 1), T1 = Date.UTC(lastYear + 1, 0, 1);
+let geo = null; // { W, L, R, base } of the last render, for pointer → time conversion
 
 function el(name, attrs, parent) {
   const e = document.createElementNS(NS, name);
@@ -212,52 +284,62 @@ function el(name, attrs, parent) {
   if (parent) parent.appendChild(e);
   return e;
 }
+const xOf = (t) => geo.L + ((t - T0) / (T1 - T0)) * (geo.W - geo.L - geo.R);
+const tOf = (x) => Math.min(T1 - 1, Math.max(T0, T0 + ((x - geo.L) / (geo.W - geo.L - geo.R)) * (T1 - T0)));
 
 function renderChart(list) {
-  const wrapW = document.getElementById("chart-wrap").clientWidth - 16;
-  const W = Math.max(wrapW, 900), L = 6, R = 6;
-  const x = (t) => L + ((t - T0) / (T1 - T0)) * (W - L - R);
+  const W = Math.max(document.getElementById("chart-wrap").clientWidth - 12, 900);
+  geo = { W, L: 6, R: 6, base: 0 };
 
   // Greedy stacking in date order: each square takes the lowest row whose last square ends left of it.
   const rowEnd = [], pos = [];
   for (const s of list) {
-    const cx = x(s.t) - CELL / 2;
+    const cx = xOf(s.t) - CELL / 2;
     let r = 0;
     while (r < rowEnd.length && rowEnd[r] > cx - 1) r++;
     rowEnd[r] = cx + CELL;
     pos.push([s, cx, r]);
   }
   const rows = Math.max(rowEnd.length, 8);
-  const H = TOP + rows * PITCH + AXIS;
+  const base = TOP + rows * PITCH;
+  geo.base = base;
+  const H = base + AXIS;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.setAttribute("width", W); svg.setAttribute("height", H);
-  svg.style.width = W + "px";
   svg.replaceChildren();
-  const base = TOP + rows * PITCH;
 
   for (const e of DATA.eras) {
-    const a = x(e.start ? dayNum(e.start) : T0), b = x(e.end ? dayNum(e.end) : T1);
+    const a = xOf(e.start ? dayNum(e.start) : T0), b = xOf(e.end ? dayNum(e.end) : T1);
     const on = state.eras.has(e.name);
     el("rect", { x: a, y: 0, width: b - a, height: base, fill: eraColor(e.name), "fill-opacity": on ? 0.09 : 0.03 }, svg);
     el("line", { x1: a, x2: a, y1: 0, y2: base, stroke: eraColor(e.name), "stroke-opacity": 0.5 }, svg);
     const t = el("text", { x: a + 6, y: 16, fill: eraColor(e.name), "font-size": 12, "font-weight": 700, opacity: on ? 1 : 0.4 }, svg);
     t.textContent = `${e.name.toUpperCase()} ERA · ${e.drummer}`;
     // A band too narrow for its label (Marlon, at the right edge) gets the label pulled left, ending at the chart edge.
-    if (a + 6 + t.getComputedTextLength() > W - R - 4) { t.setAttribute("x", W - R - 4); t.setAttribute("text-anchor", "end"); }
+    if (a + 6 + t.getComputedTextLength() > W - geo.R - 4) { t.setAttribute("x", W - geo.R - 4); t.setAttribute("text-anchor", "end"); }
   }
   for (let y = firstYear; y <= lastYear + 1; y++) {
-    const xx = x(Date.UTC(y, 0, 1));
+    const xx = xOf(Date.UTC(y, 0, 1));
     el("line", { x1: xx, x2: xx, y1: base, y2: base + 5, stroke: "#555" }, svg);
     if (y <= lastYear) {
-      const lbl = el("text", { x: x(Date.UTC(y, 6, 1)), y: base + 18, fill: "#8b8f9c", "font-size": 11, "text-anchor": "middle" }, svg);
+      const lbl = el("text", { class: "yr", x: xOf(Date.UTC(y, 6, 1)), y: base + 17, fill: "#8b8f9c", "font-size": 11, "text-anchor": "middle", "data-year": y }, svg);
       lbl.textContent = W < 1100 ? "'" + String(y).slice(2) : y;
     }
   }
-  el("line", { x1: L, x2: W - R, y1: base, y2: base, stroke: "#555" }, svg);
+  el("line", { x1: geo.L, x2: W - geo.R, y1: base, y2: base, stroke: "#555" }, svg);
 
   const g = el("g", {}, svg);
-  for (const [s, cx, r] of pos) {
-    el("rect", { class: "song", x: cx, y: base - (r + 1) * PITCH + 1, width: CELL, height: CELL, rx: 1.5, fill: kindColor(s.kind), "data-i": s.i }, g);
+  const r = state.range;
+  for (const [s, cx, row] of pos) {
+    const inRange = !r || (s.t >= r[0] && s.t <= r[1]);
+    el("rect", {
+      class: "song" + (s.i === state.sel ? " hl" : ""), x: cx, y: base - (row + 1) * PITCH + 1, width: CELL, height: CELL, rx: 1.5,
+      fill: kindColor(s.kind), "fill-opacity": inRange ? 1 : 0.18, "data-i": s.i,
+    }, g);
+  }
+  if (r) {
+    const a = xOf(r[0]), b = xOf(r[1] + 86400000);
+    el("rect", { x: a, y: 0, width: Math.max(b - a, 2), height: base, fill: "none", stroke: css("--original"), "stroke-dasharray": "4 3", "pointer-events": "none" }, svg);
   }
   if (!list.length) {
     const t = el("text", { x: W / 2, y: TOP + 30, fill: "#8b8f9c", "text-anchor": "middle" }, svg);
@@ -265,78 +347,205 @@ function renderChart(list) {
   }
 }
 
-svg.addEventListener("mousemove", (ev) => {
+const localX = (ev) => ev.clientX - svg.getBoundingClientRect().left;
+let drag = null;
+svg.addEventListener("pointerdown", (ev) => {
+  if (ev.button !== 0 || ev.target.dataset.i !== undefined) return;
+  svg.setPointerCapture(ev.pointerId);
+  const x = localX(ev);
+  // Pointer capture retargets pointerup to the svg, so remember what was pressed now.
+  drag = { x0: x, year: ev.target.dataset.year, box: el("rect", { x, y: 0, width: 0, height: geo.base, fill: css("--original"), "fill-opacity": 0.12, stroke: css("--original"), "pointer-events": "none" }, svg) };
+});
+svg.addEventListener("pointermove", (ev) => {
+  if (drag) {
+    const x = localX(ev);
+    drag.box.setAttribute("x", Math.min(x, drag.x0)); drag.box.setAttribute("width", Math.abs(x - drag.x0));
+    return;
+  }
   const i = ev.target.dataset && ev.target.dataset.i;
   if (i === undefined) { tip.style.display = "none"; return; }
   const s = songs[+i];
   tip.innerHTML =
-    `<b>${esc(s.title)}</b> <span class="kind" style="background:${kindColor(s.kind)}">${esc(KIND_LABEL[s.kind] || s.kind)}</span><br>` +
+    `<b>${esc(s.title)}</b> <span class="badge" style="background:${kindColor(s.kind)}">${esc(KIND_LABEL[s.kind] || s.kind)}</span><br>` +
     `<span class="m">by</span> ${esc(s.authorNames.join(", ") || "no author listed")}<br>` +
-    `${fmt(s.date)} · <span class="m">${esc(ERA_LABEL[s.era])}${s.era === "Between" ? "" : " Era"}</span><br>` +
-    `${esc(s.venue)}${s.place ? `, <span class="m">${esc(s.place)}</span>` : ""}<br>` +
-    `<span class="m">played ${s.plays} time${s.plays === 1 ? "" : "s"} total</span>`;
+    `${fmt(s.date)} · <span class="m">${esc(ERA_LABEL[s.era])}</span><br>` +
+    `${esc(s.venue)}${s.place ? `, <span class="m">${esc(s.place)}</span>` : ""}`;
   tip.style.display = "block";
   const w = tip.offsetWidth, h = tip.offsetHeight;
   tip.style.left = Math.min(ev.clientX + 14, innerWidth - w - 8) + "px";
   tip.style.top = (ev.clientY + 14 + h > innerHeight ? ev.clientY - h - 10 : ev.clientY + 14) + "px";
 });
+svg.addEventListener("pointerup", (ev) => {
+  if (!drag) return;
+  const x0 = drag.x0, x1 = localX(ev), yr = drag.year;
+  drag.box.remove(); drag = null;
+  if (Math.abs(x1 - x0) >= 4) {
+    const a = tOf(Math.min(x0, x1)), b = tOf(Math.max(x0, x1));
+    setRange([dayNum(isoDay(a)), dayNum(isoDay(b))]);
+    return;
+  }
+  // A click: on the axis selects that year; on empty chart space clears the range.
+  if (yr) setRange([Date.UTC(+yr, 0, 1), Date.UTC(+yr, 11, 31)]);
+  else if (state.range) setRange(null);
+});
 svg.addEventListener("mouseleave", () => (tip.style.display = "none"));
 svg.addEventListener("click", (ev) => {
   const i = ev.target.dataset && ev.target.dataset.i;
-  if (i === undefined) return;
-  const card = document.getElementById("show-" + songs[+i].show);
-  if (!card) return;
-  card.scrollIntoView({ behavior: "smooth", block: "center" });
-  card.classList.add("flash");
-  setTimeout(() => card.classList.remove("flash"), 1200);
+  if (i !== undefined) select(+i, true);
 });
 
-// ---------- list ----------
-function renderList(list) {
-  const shows = [];
-  const byShow = new Map();
-  for (const s of list) {
-    let sh = byShow.get(s.show);
-    if (!sh) { sh = { slug: s.show, date: s.date, venue: s.venue, place: s.place, era: s.era, songs: [] }; byShow.set(s.show, sh); shows.push(sh); }
-    sh.songs.push(s);
-  }
-  if (state.order === "desc") shows.reverse();
+// ---------- table ----------
+const rowsEl = document.getElementById("rows");
+const listPane = document.getElementById("list-pane");
+let order = []; // song indices in current table order, for keyboard navigation
+
+const SORT = {
+  date: (s) => s.t,
+  title: (s) => s.title.toLowerCase(),
+  kind: (s) => presentKinds.indexOf(s.kind),
+  author: (s) => (s.authorNames[0] || "\uffff").toLowerCase(),
+  venue: (s) => s.venue.toLowerCase(),
+  plays: (s) => s.plays,
+};
+document.querySelectorAll("thead th").forEach((th) => th.addEventListener("click", () => {
+  const k = th.dataset.k;
+  state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === "plays" ? -1 : 1 };
+  renderTable(current);
+}));
+
+function renderTable(list) {
+  const { key, dir } = state.sort;
+  const get = SORT[key];
+  const sorted = [...list].sort((a, b) => {
+    const va = get(a), vb = get(b);
+    return (va < vb ? -1 : va > vb ? 1 : 0) * dir || a.t - b.t || byTitle(a, b);
+  });
+  document.querySelectorAll("thead th").forEach((th) => {
+    if (th.dataset.k === key) th.setAttribute("aria-sort", dir > 0 ? "ascending" : "descending"); else th.removeAttribute("aria-sort");
+  });
+  order = sorted.map((s) => s.i);
+  const perYear = {};
+  if (key === "date") for (const s of list) perYear[s.date.slice(0, 4)] = (perYear[s.date.slice(0, 4)] || 0) + 1;
   const out = [];
   let year = null;
-  for (const sh of shows) {
-    const y = sh.date.slice(0, 4);
-    if (y !== year) {
-      year = y;
-      const n = list.filter((s) => s.date.startsWith(y)).length;
-      out.push(`<div class="year">${y}<span class="n">${n} debut${n === 1 ? "" : "s"}</span></div>`);
+  for (const s of sorted) {
+    if (key === "date" && s.date.slice(0, 4) !== year) {
+      year = s.date.slice(0, 4);
+      out.push(`<tr class="yr"><td colspan="6">${year}<span>${perYear[year]} debut${perYear[year] === 1 ? "" : "s"}</span></td></tr>`);
     }
     out.push(
-      `<div class="show" id="show-${esc(sh.slug)}" style="border-left-color:${eraColor(sh.era)}">` +
-      `<div><div class="d">${fmt(sh.date)}</div><div class="era">${esc(ERA_LABEL[sh.era])}${sh.era === "Between" ? "" : " Era"}</div></div>` +
-      `<div class="v"><a href="${DATA.site}/shows/${esc(sh.slug)}" target="_blank" rel="noopener">${esc(sh.venue)}</a>` +
-      `${sh.place ? ` <span class="p">· ${esc(sh.place)}</span>` : ""}</div>` +
-      `<div class="songs">` +
-      sh.songs.map((s) =>
-        `<a class="song-chip" style="border-left-color:${kindColor(s.kind)}" href="${DATA.site}/songs/${esc(s.slug)}" target="_blank" rel="noopener" ` +
-        `title="${esc(KIND_LABEL[s.kind] || s.kind)} · played ${s.plays}×">` +
-        `<span class="t">${esc(s.title)}</span><span class="a">${esc(s.authorNames.join(", ") || "no author listed")}</span></a>`
-      ).join("") +
-      `</div></div>`
+      `<tr class="row${s.i === state.sel ? " sel" : ""}" data-i="${s.i}">` +
+      `<td class="date" style="box-shadow:inset 3px 0 ${eraColor(s.era)}" title="${esc(ERA_LABEL[s.era])}">${fmtShort(s.date)}</td>` +
+      `<td class="title"><div class="clip" title="${esc(s.title)}"><span class="sw mob" style="background:${kindColor(s.kind)}"></span>${esc(s.title)}</div></td>` +
+      `<td class="kind c-kind"><span class="sw" style="background:${kindColor(s.kind)}"></span> ${esc(KIND_LABEL[s.kind] || s.kind)}</td>` +
+      `<td class="author"><div class="clip" title="${esc(s.authorNames.join(", "))}">${s.authors.length ? esc(s.authorNames.join(", ")) : '<span class="m">—</span>'}</div></td>` +
+      `<td class="c-venue"><div class="clip" title="${esc(s.venue + (s.place ? ", " + s.place : ""))}">${esc(s.venue)}${s.place ? ` <span class="m">· ${esc(s.place)}</span>` : ""}</div></td>` +
+      `<td class="num c-plays">${s.plays}</td></tr>`
     );
   }
-  document.getElementById("list").innerHTML = out.join("") || `<div class="empty">No debuts match these filters.</div>`;
-  document.getElementById("count").textContent = `${list.length} of ${songs.length} songs · ${shows.length} shows`;
+  rowsEl.innerHTML = out.join("") || `<tr><td colspan="6" class="empty">No debuts match these filters.</td></tr>`;
+  document.getElementById("count").textContent = `${list.length} of ${songs.length} songs · ${new Set(list.map((s) => s.show)).size} shows`;
+}
+rowsEl.addEventListener("click", (ev) => {
+  const tr = ev.target.closest("tr.row");
+  if (tr) select(+tr.dataset.i, false);
+});
+listPane.addEventListener("keydown", (ev) => {
+  if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+  ev.preventDefault();
+  if (!order.length) return;
+  const at = order.indexOf(state.sel);
+  const next = at < 0 ? 0 : Math.min(order.length - 1, Math.max(0, at + (ev.key === "ArrowDown" ? 1 : -1)));
+  select(order[next], true);
+});
+
+// ---------- selection + detail ----------
+const detailEl = document.getElementById("detail");
+
+function select(i, scrollTable) {
+  state.sel = i;
+  rowsEl.querySelectorAll("tr.sel").forEach((tr) => tr.classList.remove("sel"));
+  svg.querySelectorAll("rect.hl").forEach((r) => r.classList.remove("hl"));
+  const tr = rowsEl.querySelector(`tr.row[data-i="${i}"]`);
+  if (tr) { tr.classList.add("sel"); if (scrollTable) tr.scrollIntoView({ block: "nearest" }); }
+  const sq = svg.querySelector(`rect.song[data-i="${i}"]`);
+  if (sq) sq.classList.add("hl");
+  renderDetail();
 }
 
+function songItem(s) {
+  return `<li data-i="${s.i}"><span class="sw" style="background:${kindColor(s.kind)}"></span>` +
+    `<span class="grow">${esc(s.title)} <span class="m">· ${esc(s.authorNames.join(", ") || "no author listed")}</span></span></li>`;
+}
+
+function renderDetail() {
+  if (state.sel !== null) {
+    const s = songs[state.sel];
+    const night = byShow.get(s.show).filter((o) => o !== s).sort(byTitle);
+    const era = eraInfo[s.era];
+    detailEl.innerHTML =
+      `<button class="linkbtn close" data-act="close">close ✕</button>` +
+      `<span class="badge" style="background:${kindColor(s.kind)}">${esc(KIND_LABEL[s.kind] || s.kind)}</span>` +
+      `<h2><a href="${DATA.site}/songs/${esc(s.slug)}" target="_blank" rel="noopener">${esc(s.title)} ↗</a></h2>` +
+      `<div class="m">by ${s.authors.length ? s.authors.map((a) => `<a href="${DATA.site}${esc(a.href)}" target="_blank" rel="noopener">${esc(a.name)}</a>`).join(", ") : "no author listed"}</div>` +
+      `<dl class="facts">` +
+      `<dt>First played</dt><dd>${fmt(s.date)}</dd>` +
+      `<dt>Venue</dt><dd><a href="${DATA.site}/shows/${esc(s.show)}" target="_blank" rel="noopener">${esc(s.venue)}</a>${s.place ? `<br><span class="m">${esc(s.place)}</span>` : ""}</dd>` +
+      `<dt>Era</dt><dd><span class="sw" style="background:${eraColor(s.era)}"></span> ${esc(ERA_LABEL[s.era])}${era ? ` <span class="m">· ${esc(era.drummer)}</span>` : ""}</dd>` +
+      `<dt>Times played</dt><dd>${s.plays}</dd>` +
+      `</dl>` +
+      (night.length
+        ? `<h3>Also debuted that night (${night.length})</h3><ul class="items">${night.map(songItem).join("")}</ul>`
+        : `<h3>Also debuted that night</h3><div class="m">Nothing else. This was the only debut at this show.</div>`);
+    return;
+  }
+
+  // Nothing selected: summarise whatever the filters and range currently cover.
+  const list = current;
+  const shows = new Set(list.map((s) => s.show)).size;
+  const kindN = {}, eraN = {}, authN = new Map(), nightN = new Map();
+  for (const s of list) {
+    kindN[s.kind] = (kindN[s.kind] || 0) + 1;
+    eraN[s.era] = (eraN[s.era] || 0) + 1;
+    for (const a of s.authorNames) authN.set(a, (authN.get(a) || 0) + 1);
+    nightN.set(s.show, (nightN.get(s.show) || 0) + 1);
+  }
+  const bars = (counts, keys, label, color) => keys.filter((k) => counts[k]).map((k) =>
+    `<div class="bar"><span>${esc(label(k))}</span><div class="track"><div class="fill" style="width:${(100 * counts[k]) / list.length}%;background:${color(k)}"></div></div><span class="n">${counts[k]}</span></div>`
+  ).join("");
+  const topAuthors = [...authN].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 6);
+  const topNights = [...nightN].sort((a, b) => b[1] - a[1] || byShow.get(a[0])[0].t - byShow.get(b[0])[0].t).slice(0, 6);
+  detailEl.innerHTML = !list.length ? `<div class="empty">No debuts match these filters.</div>` :
+    `<div class="big">${list.length}</div><div class="m">song debut${list.length === 1 ? "" : "s"} across ${shows} show${shows === 1 ? "" : "s"}` +
+    `${state.range ? ` · ${esc(rangeLabel(state.range))}` : ""}. Select a song for details.</div>` +
+    `<h3>By type</h3>${bars(kindN, presentKinds, (k) => KIND_LABEL[k] || k, kindColor)}` +
+    `<h3>By era</h3>${bars(eraN, presentEras, (e) => ERA_LABEL[e], eraColor)}` +
+    (topAuthors.length && !state.author ? `<h3>Top authors</h3><ul class="items">${topAuthors.map(([n, c]) =>
+      `<li data-author="${esc(n)}"><span class="grow">${esc(n)}</span><span class="n">${c}</span></li>`).join("")}</ul>` : "") +
+    `<h3>Biggest debut nights</h3><ul class="items">${topNights.map(([slug, c]) => {
+      const first = byShow.get(slug)[0];
+      return `<li data-i="${list.find((s) => s.show === slug).i}"><span class="grow">${fmtShort(first.date)} <span class="m">· ${esc(first.venue)}</span></span><span class="n">${c}</span></li>`;
+    }).join("")}</ul>`;
+}
+detailEl.addEventListener("click", (ev) => {
+  if (ev.target.closest("[data-act=close]")) { state.sel = null; select(null, false); return; }
+  const li = ev.target.closest("li");
+  if (!li) return;
+  if (li.dataset.author) setAuthor(li.dataset.author);
+  else if (li.dataset.i !== undefined) select(+li.dataset.i, true);
+});
+
+// ---------- render ----------
 let current = songs;
 function render() {
   current = songs.filter((s) => matches(s));
   updateControls();
-  renderChart(current);
-  renderList(current);
+  renderChart(songs.filter((s) => matches(s, "range")));
+  renderTable(current);
+  renderDetail();
 }
 let rz;
-addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => renderChart(current), 120); });
+addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => renderChart(songs.filter((s) => matches(s, "range"))), 120); });
 render();
 </script>
 </body>
