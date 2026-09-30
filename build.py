@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """Pull every song from the Biscuits Internet Project and build the FIRST TIME PLAYED timeline.
 
-Source: https://discobiscuits.net/api/songs (one request, full catalog, each song embeds its
-firstPlayedShow + venue). Outputs, next to this script:
-  index.html               self-contained interactive timeline (no network needed to view)
+Sources: https://discobiscuits.net/api/songs (one request, full catalog, each song embeds its
+firstPlayedShow + venue), and the archive.org DiscoBiscuits collection for recordings of each
+song's debut performance (see archive.py). Outputs, next to this script:
+  index.html               self-contained interactive timeline (audio streams from archive.org)
   songs_first_played.csv   flat export of the same data
 """
 import csv
 import json
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+import archive
 
 API = "https://discobiscuits.net/api/songs"
 SITE = "https://discobiscuits.net"
@@ -72,12 +76,18 @@ def main() -> None:
         })
     songs.sort(key=lambda x: (x["date"], x["title"].lower()))
 
+    audio, recordings = archive.find_debut_audio(songs)
+    for x in songs:
+        if x["slug"] in audio:
+            x["audio"] = audio[x["slug"]]
+
     fetched = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     payload = {
         "fetched": fetched,
         "site": SITE,
         "eras": [{"name": n, "drummer": d, "start": s, "end": e} for n, d, s, e in ERAS],
         "songs": songs,
+        "recordings": recordings,
     }
     data = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     template = (HERE / "template.html").read_text(encoding="utf-8")
@@ -88,12 +98,16 @@ def main() -> None:
 
     with open(HERE / "songs_first_played.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["song", "type", "authors", "first_played", "era", "venue", "location", "times_played", "show_url", "song_url"])
+        w.writerow(["song", "type", "authors", "first_played", "era", "venue", "location", "times_played", "show_url", "song_url",
+                    "debut_audio_url"])
         for x in songs:
-            w.writerow([x["title"], x["kind"], "; ".join(a["name"] for a in x["authors"]), x["date"], x["era"],
-                        x["venue"], x["place"], x["plays"], f"{SITE}/shows/{x['show']}", f"{SITE}/songs/{x['slug']}"])
+            a = x.get("audio")
+            w.writerow([x["title"], x["kind"], "; ".join(a_["name"] for a_ in x["authors"]), x["date"], x["era"],
+                        x["venue"], x["place"], x["plays"], f"{SITE}/shows/{x['show']}", f"{SITE}/songs/{x['slug']}",
+                        f"https://archive.org/download/{a['id']}/{urllib.parse.quote(a['file'])}" if a else ""])
 
-    print(f"{len(raw)} songs from API, {len(songs)} with a first-played show, fetched {fetched}")
+    print(f"{len(raw)} songs from API, {len(songs)} with a first-played show, "
+          f"{len(audio)} with debut audio on archive.org, fetched {fetched}")
     if missing:
         print(f"no first-played show: {', '.join(missing)}")
 
