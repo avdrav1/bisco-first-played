@@ -2,8 +2,8 @@
 """Pull every song from the Biscuits Internet Project and build the FIRST TIME PLAYED timeline.
 
 Sources: https://discobiscuits.net/api/songs (one request, full catalog, each song embeds its
-firstPlayedShow + venue), and the archive.org DiscoBiscuits collection for recordings of each
-song's debut performance (see archive.py). Outputs, next to this script:
+firstPlayedShow + venue), and the archive.org DiscoBiscuits collection for a recording of each
+song, preferring its debut (see archive.py). Outputs, next to this script:
   index.html               self-contained interactive timeline (audio streams from archive.org)
   songs_first_played.csv   flat export of the same data
 """
@@ -76,7 +76,12 @@ def main() -> None:
         })
     songs.sort(key=lambda x: (x["date"], x["title"].lower()))
 
-    audio, recordings = archive.find_debut_audio(songs)
+    by_slug = {s["slug"]: s for s in raw if s.get("firstPlayedShow")}
+    audio, recordings = archive.find_audio([
+        {"slug": x["slug"], "id": by_slug[x["slug"]]["id"], "title": x["title"], "date": x["date"],
+         "show_id": by_slug[x["slug"]]["firstPlayedShow"]["id"], "plays": x["plays"]}
+        for x in songs
+    ])
     for x in songs:
         if x["slug"] in audio:
             x["audio"] = audio[x["slug"]]
@@ -99,15 +104,19 @@ def main() -> None:
     with open(HERE / "songs_first_played.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["song", "type", "authors", "first_played", "era", "venue", "location", "times_played", "show_url", "song_url",
-                    "debut_audio_url"])
+                    "audio_url", "audio_source", "audio_date"])
+        source = {"title": "debut", "setlist": "debut (by setlist position)", "later": "earliest later recording"}
         for x in songs:
             a = x.get("audio")
             w.writerow([x["title"], x["kind"], "; ".join(a_["name"] for a_ in x["authors"]), x["date"], x["era"],
                         x["venue"], x["place"], x["plays"], f"{SITE}/shows/{x['show']}", f"{SITE}/songs/{x['slug']}",
-                        f"https://archive.org/download/{a['id']}/{urllib.parse.quote(a['file'])}" if a else ""])
+                        f"https://archive.org/download/{a['id']}/{urllib.parse.quote(a['file'])}" if a else "",
+                        source[a["how"]] if a else "", a.get("date", x["date"]) if a else ""])
 
-    print(f"{len(raw)} songs from API, {len(songs)} with a first-played show, "
-          f"{len(audio)} with debut audio on archive.org, fetched {fetched}")
+    how = {k: sum(1 for a in audio.values() if a["how"] == k) for k in ("title", "setlist", "later")}
+    print(f"{len(raw)} songs from API, {len(songs)} with a first-played show, fetched {fetched}")
+    print(f"archive.org audio for {len(audio)}: debut by title {how['title']}, debut by setlist position {how['setlist']}, "
+          f"earliest later recording {how['later']}")
     if missing:
         print(f"no first-played show: {', '.join(missing)}")
 

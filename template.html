@@ -113,7 +113,10 @@
     font-size: 9px; line-height: 18px; text-align: center; cursor: pointer; margin-right: 6px; vertical-align: 1px; flex: none; }
   .play:hover { background: var(--original); color: #111; }
   .play.on { background: var(--original); color: #111; }
+  .play.later { color: var(--muted); border-style: dashed; }
+  .play.later:hover, .play.later.on { background: var(--muted); color: #111; }
   .noplay { display: inline-block; width: 26px; }
+  .playbig.later { background: #3a3f4e; color: var(--text); }
   .playbig { display: inline-flex; align-items: center; gap: 8px; background: var(--original); color: #111; border: none; border-radius: 8px;
     padding: 7px 12px; font: inherit; font-weight: 700; cursor: pointer; }
   .playbig:hover { filter: brightness(1.1); }
@@ -228,9 +231,11 @@ function eraTitle(e) {
   return `${e} Era · ${r.drummer} · ${r.start ? fmt(r.start) : "start"} – ${r.end ? fmt(r.end) : "present"}`;
 }
 
-const playable = songs.filter((s) => s.audio).length;
+const isDebutAudio = (s) => s.audio && s.audio.how !== "later";
+const playableDebut = songs.filter(isDebutAudio).length, playableLater = songs.filter((s) => s.audio && !isDebutAudio(s)).length;
 document.getElementById("sub").innerHTML =
-  `The Disco Biscuits · ${songs.length} songs at the show where each was first played, ${playable} with the debut playable from archive.org · data: ` +
+  `The Disco Biscuits · ${songs.length} songs at the show where each was first played · archive.org audio for ${playableDebut} debuts, ` +
+  `plus the earliest later recording for ${playableLater} more · data: ` +
   `<a href="${DATA.site}/songs" target="_blank" rel="noopener">Biscuits Internet Project</a>, pulled ${esc(DATA.fetched)}`;
 document.getElementById("foot").textContent =
   "Era boundaries match BIP's own Sammy/Allen/Marlon filters. Song and show links open on BIP.";
@@ -413,7 +418,9 @@ svg.addEventListener("pointermove", (ev) => {
     `<b>${esc(s.title)}</b> <span class="badge" style="background:${kindColor(s.kind)}">${esc(KIND_LABEL[s.kind] || s.kind)}</span><br>` +
     `<span class="m">by</span> ${esc(s.authorNames.join(", ") || "no author listed")}<br>` +
     `${fmt(s.date)} · <span class="m">${esc(ERA_LABEL[s.era])}</span><br>` +
-    (s.audio ? `<span style="color:var(--original)">▶ debut recording on archive.org</span><br>` : "") +
+    (s.audio ? (isDebutAudio(s)
+      ? `<span style="color:var(--original)">▶ debut recording on archive.org</span><br>`
+      : `<span class="m">▶ earliest recording ${fmtShort(s.audio.date)} (not the debut)</span><br>`) : "") +
     `${esc(s.venue)}${s.place ? `, <span class="m">${esc(s.place)}</span>` : ""}`;
   tip.style.display = "block";
   const w = tip.offsetWidth, h = tip.offsetHeight;
@@ -563,7 +570,10 @@ function renderTable(list) {
       `<tr class="row${s.i === state.sel ? " sel" : ""}" data-i="${s.i}">` +
       `<td class="date" style="box-shadow:inset 3px 0 ${eraColor(s.era)}" title="${esc(ERA_LABEL[s.era])}">${fmtShort(s.date)}</td>` +
       `<td class="title"><div class="clip" title="${esc(s.title)}">` +
-      (s.audio ? `<button class="play${s.i === playingI ? " on" : ""}" data-play="${s.i}" title="Play the debut (archive.org)">▶</button>` : `<span class="noplay"></span>`) +
+      (s.audio
+        ? `<button class="play${isDebutAudio(s) ? "" : " later"}${s.i === playingI ? " on" : ""}" data-play="${s.i}" ` +
+          `title="${isDebutAudio(s) ? "Play the debut (archive.org)" : `Play the earliest recording, ${fmtShort(s.audio.date)} (not the debut)`}">▶</button>`
+        : `<span class="noplay"></span>`) +
       `<span class="sw mob" style="background:${kindColor(s.kind)}"></span>${esc(s.title)}</div></td>` +
       `<td class="kind c-kind"><span class="sw" style="background:${kindColor(s.kind)}"></span> ${esc(KIND_LABEL[s.kind] || s.kind)}</td>` +
       `<td class="author"><div class="clip" title="${esc(s.authorNames.join(", "))}">${s.authors.length ? esc(s.authorNames.join(", ")) : '<span class="m">—</span>'}</div></td>` +
@@ -606,22 +616,35 @@ function select(i, scrollTable) {
 function songItem(s) {
   return `<li data-i="${s.i}"><span class="sw" style="background:${kindColor(s.kind)}"></span>` +
     `<span class="grow">${esc(s.title)} <span class="m">· ${esc(s.authorNames.join(", ") || "no author listed")}</span></span>` +
-    (s.audio ? `<span style="color:var(--original)" title="Debut recording available">▶</span>` : "") + `</li>`;
+    (s.audio ? `<span style="color:var(${isDebutAudio(s) ? "--original" : "--muted"})" title="${isDebutAudio(s) ? "Debut recording available" : "Later recording available"}">▶</span>` : "") + `</li>`;
 }
 
 function recordingHtml(s) {
-  if (s.audio) {
-    const a = s.audio;
-    return `<button class="playbig" data-act="play">${playingI === s.i ? "❚❚ Pause / resume" : "▶ Play the debut"}</button>` +
-      `<div class="rec m">archive.org track ${a.n}: “${esc(a.track)}”${a.length ? ` · ${esc(a.length)}` : ""} · ` +
-      `<a href="${iaDetails(a.id)}" target="_blank" rel="noopener">recording ↗</a></div>`;
+  const a = s.audio, rec = DATA.recordings[s.date];
+  const playing = playingI === s.i;
+  const trackLine = a && `archive.org track ${a.n}: “${esc(a.track)}”${a.length ? ` · ${esc(a.length)}` : ""} · ` +
+    `<a href="${iaDetails(a.id)}" target="_blank" rel="noopener">recording ↗</a>`;
+  const debutGap = rec
+    ? `The debut show is on archive.org, but none of its tracks is titled “${esc(s.title)}”; it may sit inside a medley or an untitled jam ` +
+      `(<a href="${iaDetails(rec)}" target="_blank" rel="noopener">browse it ↗</a>).`
+    : `The debut show isn't on archive.org.`;
+  if (a && a.how !== "later") {
+    return `<h3>Debut recording</h3>` +
+      `<button class="playbig" data-act="play">${playing ? "❚❚ Pause / resume" : "▶ Play the debut"}</button>` +
+      `<div class="rec m">${trackLine}</div>` +
+      (a.how === "setlist"
+        ? `<div class="rec m">Found by setlist position: the recording doesn't title this track as the song, but it sits exactly where BIP's setlist puts it.</div>`
+        : "");
   }
-  const rec = DATA.recordings[s.date];
-  if (rec) {
-    return `<div class="m">This show is on archive.org, but none of its tracks is titled “${esc(s.title)}”. It may sit inside a medley or an untitled jam. ` +
-      `<a href="${iaDetails(rec)}" target="_blank" rel="noopener">Browse the recording ↗</a></div>`;
+  if (a) {
+    return `<h3>Earliest recording on archive.org</h3>` +
+      `<div class="m" style="margin-bottom:8px">Not the debut. ${debutGap}</div>` +
+      `<button class="playbig later" data-act="play">${playing ? "❚❚ Pause / resume" : `▶ Play ${fmt(a.date)}`}</button>` +
+      `<div class="rec m"><a href="${DATA.site}/shows/${esc(a.show)}" target="_blank" rel="noopener">${esc(a.venue)}</a>${a.place ? `, ${esc(a.place)}` : ""}</div>` +
+      `<div class="rec m">${trackLine}</div>`;
   }
-  return `<div class="m">No recording of this show on archive.org.</div>`;
+  return `<h3>Debut recording</h3><div class="m">${rec ? debutGap : "No recording of this show on archive.org."}` +
+    `${s.plays > 1 ? " No later recording has a track titled as this song either." : ""}</div>`;
 }
 
 function renderDetail() {
@@ -640,7 +663,7 @@ function renderDetail() {
       `<dt>Era</dt><dd><span class="sw" style="background:${eraColor(s.era)}"></span> ${esc(ERA_LABEL[s.era])}${era ? ` <span class="m">· ${esc(era.drummer)}</span>` : ""}</dd>` +
       `<dt>Times played</dt><dd>${s.plays}</dd>` +
       `</dl>` +
-      `<h3>Debut recording</h3>` + recordingHtml(s) +
+      recordingHtml(s) +
       (night.length
         ? `<h3>Also debuted that night (${night.length})</h3><ul class="items">${night.map(songItem).join("")}</ul>`
         : `<h3>Also debuted that night</h3><div class="m">Nothing else. This was the only debut at this show.</div>`);
@@ -694,8 +717,10 @@ function play(i) {
   if (playingI === i) { if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause(); return; }
   playingI = i;
   audioEl.src = iaFile(s.audio);
-  npTitle.textContent = `${s.title} — debut, ${fmt(s.date)}`;
-  npMeta.textContent = `${s.venue}${s.place ? ", " + s.place : ""} · archive.org track ${s.audio.n}: ${s.audio.track}`;
+  const debut = isDebutAudio(s);
+  npTitle.textContent = debut ? `${s.title} — debut, ${fmt(s.date)}` : `${s.title} — ${fmt(s.audio.date)} (not the debut)`;
+  npMeta.textContent = (debut ? `${s.venue}${s.place ? ", " + s.place : ""}` : `${s.audio.venue}${s.audio.place ? ", " + s.audio.place : ""}`) +
+    ` · archive.org track ${s.audio.n}: ${s.audio.track}`;
   npLink.href = iaDetails(s.audio.id);
   playerEl.hidden = false;
   document.body.classList.add("playing");
