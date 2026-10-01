@@ -49,7 +49,9 @@ def _get_json(url: str) -> dict:
 
 
 def items_by_date() -> dict:
-    """date -> [{identifier, downloads}] for every item in the collection, most downloaded first."""
+    """date -> [{identifier, downloads}] for every item in the collection, most downloaded first.
+    Ties (every fresh upload has 0 downloads) go by identifier: the search API's order isn't stable, and
+    an unstable pick would change the build, and so commit, on every run."""
     q = urllib.parse.urlencode([
         ("q", f"collection:{COLLECTION}"), ("fl[]", "identifier"), ("fl[]", "date"), ("fl[]", "downloads"),
         ("rows", "20000"), ("output", "json"),
@@ -59,7 +61,7 @@ def items_by_date() -> dict:
         if d.get("date"):
             out.setdefault(d["date"][:10], []).append({"identifier": d["identifier"], "downloads": d.get("downloads") or 0})
     for items in out.values():
-        items.sort(key=lambda it: -it["downloads"])
+        items.sort(key=lambda it: (-it["downloads"], it["identifier"]))
     return out
 
 
