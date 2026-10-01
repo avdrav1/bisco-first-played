@@ -27,7 +27,11 @@
   .chip[aria-pressed="false"] { opacity: .4; }
   .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
   .sw.mob { display: none; margin-right: 6px; }
-  col.c-date { width: 82px; } col.c-title { width: 27%; } col.c-kind { width: 118px; } col.c-author { width: 22%; } col.c-plays { width: 60px; }
+  .by { display: none; }
+  .tcell { display: flex; align-items: center; min-width: 0; }
+  .tcell .tt { flex: 1; min-width: 0; }
+  .touch { display: none; }
+  col.c-date, col.c-last { width: 82px; } col.c-title { width: 27%; } col.c-kind { width: 118px; } col.c-author { width: 22%; } col.c-plays { width: 60px; }
   select, input[type=search] { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font: inherit; }
   select { max-width: 240px; }
   #range { display: none; border-color: var(--original); }
@@ -73,7 +77,7 @@
   tbody tr.row.sel { background: #2b2f3d; }
   tbody tr.yr td { background: var(--bg); color: var(--text); font-weight: 800; font-size: 13px; padding: 10px 10px 4px; letter-spacing: .04em; }
   tbody tr.yr td span { color: var(--muted); font-weight: 400; margin-left: 8px; }
-  td.date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.date, td.last { white-space: nowrap; font-variant-numeric: tabular-nums; }
   td.title { font-weight: 600; }
   td .m, .m { color: var(--muted); }
   td.kind { white-space: nowrap; }
@@ -110,12 +114,12 @@
   body.playing footer { padding-bottom: 96px; }
   body.playing main { padding-bottom: 72px; }
   .play { background: none; border: 1px solid var(--line); color: var(--original); border-radius: 50%; width: 20px; height: 20px; padding: 0;
-    font-size: 9px; line-height: 18px; text-align: center; cursor: pointer; margin-right: 6px; vertical-align: 1px; flex: none; }
+    font-size: 9px; line-height: 18px; text-align: center; cursor: pointer; margin-right: 6px; flex: none; }
   .play:hover { background: var(--original); color: #111; }
   .play.on { background: var(--original); color: #111; }
   .play.later { color: var(--muted); border-style: dashed; }
   .play.later:hover, .play.later.on { background: var(--muted); color: #111; }
-  .noplay { display: inline-block; width: 26px; }
+  .noplay { display: inline-block; width: 26px; flex: none; }
   .playbig.later { background: #3a3f4e; color: var(--text); }
   .playbig { display: inline-flex; align-items: center; gap: 8px; background: var(--original); color: #111; border: none; border-radius: 8px;
     padding: 7px 12px; font: inherit; font-weight: 700; cursor: pointer; }
@@ -131,20 +135,43 @@
   #player audio { flex: 2 1 320px; height: 36px; }
   #player a { color: var(--muted); font-size: 12px; white-space: nowrap; }
 
+  #scrim { display: none; position: fixed; inset: 0; z-index: 14; background: rgba(0,0,0,.55); }
+
   @media (max-width: 1250px) { .split { grid-template-columns: minmax(0, 1fr) 290px; } }
   @media (max-width: 900px) {
+    header { padding: 16px 14px 4px; }
+    h1 { font-size: 24px; }
+    .controls { position: static; padding: 10px 14px; gap: 8px 16px; }
+    main { padding: 10px 10px 20px; }
+    footer { padding: 0 14px 20px; }
+    /* iOS zooms into focused fields whose text is under 16px. */
+    select, input[type=search] { font-size: 16px; }
     .split { grid-template-columns: 1fr; height: auto; }
     #list-pane { height: 65vh; }
-    .controls { position: static; }
-    .c-venue, .c-kind, .c-plays { display: none; }
-    table { table-layout: auto; }
-    col.c-date, col.c-title, col.c-author { width: auto; }
+    .c-venue, .c-kind, .c-plays, .c-author, .c-last { display: none; }
+    /* Hidden columns keep zero-width cols: display:none cols still absorb width in a fixed layout. */
+    col.c-date { width: 64px; } col.c-title { width: auto; }
+    col.c-kind, col.c-author, col.c-venue, col.c-last, col.c-plays { display: table-column; width: 0; }
     tbody td, thead th { padding-left: 6px; padding-right: 6px; }
-    td.title .clip { max-width: 40vw; } td.author .clip { max-width: 22vw; }
     .sw.mob { display: inline-block; }
-    h1 { font-size: 24px; }
+    .by { display: block; font-size: 12px; font-weight: 400; }
     #player { padding: 8px 14px; gap: 6px 14px; }
     body.playing main { padding-bottom: 180px; }
+    /* A selected song opens as a bottom sheet; in the stacked layout the detail pane sits far below the list. */
+    body.sheet #scrim { display: block; }
+    body.sheet #detail { position: fixed; left: 0; right: 0; bottom: var(--player-h, 0px); z-index: 16;
+      max-height: calc(88vh - var(--player-h, 0px)); border-radius: 14px 14px 0 0; border-bottom: none;
+      box-shadow: 0 -12px 32px rgba(0,0,0,.6); overscroll-behavior: contain; }
+  }
+  @media (pointer: coarse) {
+    .chip { padding: 6px 12px; }
+    .play { width: 26px; height: 26px; line-height: 24px; font-size: 10px; }
+    .noplay { width: 32px; }
+    .linkbtn { padding: 6px 2px; }
+  }
+  @media (hover: none) and (pointer: coarse) {
+    .touch { display: inline; }
+    .no-touch { display: none; }
   }
 </style>
 </head>
@@ -166,16 +193,16 @@
 
 <main>
   <div id="chart-wrap"><svg id="chart" role="img" aria-label="Song debuts over time"></svg></div>
-  <div class="hint">Each square is one song's debut. Pick a <b>year tab</b> or <b>drag</b> across the chart for any date range; <b>click a square</b> for details. ←/→ step through years; in the table, ↑/↓ step through songs.</div>
+  <div class="hint"><span class="no-touch">Each square is one song's debut. Pick a <b>year tab</b> or <b>drag</b> across the chart for any date range; <b>click a square</b> for details. ←/→ step through years; in the table, ↑/↓ step through songs.</span><span class="touch">Each square is one song's debut. Pick a <b>year tab</b> or <b>swipe sideways</b> across the chart for any date range; <b>tap a square</b> or a row for details.</span></div>
   <div class="years" id="years" role="tablist" aria-label="Debut year"></div>
   <div class="split">
     <div class="pane" id="list-pane" tabindex="0">
       <table>
-        <colgroup><col class="c-date"><col class="c-title"><col class="c-kind"><col class="c-author"><col class="c-venue"><col class="c-plays"></colgroup>
+        <colgroup><col class="c-date"><col class="c-title"><col class="c-kind"><col class="c-author"><col class="c-venue"><col class="c-last"><col class="c-plays"></colgroup>
         <thead><tr>
           <th data-k="date">Debut</th><th data-k="title">Song</th><th data-k="kind" class="c-kind">Type</th>
-          <th data-k="author">Author</th><th data-k="venue" class="c-venue">Venue</th>
-          <th data-k="plays" class="num c-plays">Plays</th>
+          <th data-k="author" class="c-author">Author</th><th data-k="venue" class="c-venue">Venue</th>
+          <th data-k="last" class="c-last" title="Most recent time played">Last</th><th data-k="plays" class="num c-plays">Plays</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
@@ -185,6 +212,7 @@
 </main>
 <footer id="foot"></footer>
 <div id="tip"></div>
+<div id="scrim"></div>
 <div id="player" hidden>
   <div class="np"><b id="np-title"></b><span class="m" id="np-meta"></span></div>
   <audio id="audio" controls preload="none"></audio>
@@ -214,7 +242,7 @@ const iaDetails = (id) => `https://archive.org/details/${encodeURIComponent(id)}
 const iaFile = (a) => `https://archive.org/download/${encodeURIComponent(a.id)}/${a.file.split("/").map(encodeURIComponent).join("/")}`;
 
 const songs = DATA.songs;
-songs.forEach((s, i) => { s.i = i; s.t = dayNum(s.date); s.authorNames = s.authors.map((a) => a.name); });
+songs.forEach((s, i) => { s.i = i; s.t = dayNum(s.date); s.lt = dayNum(s.last.date); s.authorNames = s.authors.map((a) => a.name); });
 const byShow = new Map();
 for (const s of songs) { if (!byShow.has(s.show)) byShow.set(s.show, []); byShow.get(s.show).push(s); }
 const kindSet = new Set(songs.map((s) => s.kind));
@@ -322,10 +350,10 @@ function rangeLabel([a, b]) {
 const svg = document.getElementById("chart");
 const tip = document.getElementById("tip");
 const NS = "http://www.w3.org/2000/svg";
-const CELL = 7, PITCH = 8, TOP = 26, AXIS = 24;
+const TOP = 26, AXIS = 24;
 const firstYear = +songs[0].date.slice(0, 4), lastYear = +songs[songs.length - 1].date.slice(0, 4);
 const T0 = Date.UTC(firstYear, 0, 1), T1 = Date.UTC(lastYear + 1, 0, 1);
-let geo = null; // { W, L, R, base } of the last render, for pointer → time conversion
+let geo = null; // { W, L, R, base, pos } of the last render, for pointer → time/square conversion
 
 function el(name, attrs, parent) {
   const e = document.createElementNS(NS, name);
@@ -337,8 +365,11 @@ const xOf = (t) => geo.L + ((t - T0) / (T1 - T0)) * (geo.W - geo.L - geo.R);
 const tOf = (x) => Math.min(T1 - 1, Math.max(T0, T0 + ((x - geo.L) / (geo.W - geo.L - geo.R)) * (T1 - T0)));
 
 function renderChart(list) {
-  const W = Math.max(document.getElementById("chart-wrap").clientWidth - 12, 900);
-  geo = { W, L: 6, R: 6, base: 0 };
+  // Always fit the wrapper: a wider chart would need horizontal panning, which touch can't do while
+  // sideways swipes select a date range. Narrow charts use smaller squares so the stacks stay short.
+  const W = Math.max(document.getElementById("chart-wrap").clientWidth - 12, 280);
+  const narrow = W < 700, CELL = narrow ? 5 : 7, PITCH = CELL + 1;
+  geo = { W, L: 6, R: 6, base: 0, pos: [] };
 
   // Greedy stacking in date order: each square takes the lowest row whose last square ends left of it.
   const rowEnd = [], pos = [];
@@ -364,15 +395,19 @@ function renderChart(list) {
     el("line", { x1: a, x2: a, y1: 0, y2: base, stroke: eraColor(e.name), "stroke-opacity": 0.5 }, svg);
     const t = el("text", { x: a + 6, y: 16, fill: eraColor(e.name), "font-size": 12, "font-weight": 700, opacity: on ? 1 : 0.4 }, svg);
     t.textContent = `${e.name.toUpperCase()} ERA · ${e.drummer}`;
+    if (narrow && t.getComputedTextLength() > b - a - 10) t.textContent = e.name.toUpperCase();
     // A band too narrow for its label (Marlon, at the right edge) gets the label pulled left, ending at the chart edge.
     if (a + 6 + t.getComputedTextLength() > W - geo.R - 4) { t.setAttribute("x", W - geo.R - 4); t.setAttribute("text-anchor", "end"); }
   }
+  // Label every year when there's room, otherwise every 2nd/5th/10th so labels don't collide.
+  const perYear = (W - geo.L - geo.R) / (lastYear + 1 - firstYear);
+  const step = [1, 2, 5, 10].find((n) => n * perYear >= 26) || 10;
   for (let y = firstYear; y <= lastYear + 1; y++) {
     const xx = xOf(Date.UTC(y, 0, 1));
     el("line", { x1: xx, x2: xx, y1: base, y2: base + 5, stroke: "#555" }, svg);
-    if (y <= lastYear) {
+    if (y <= lastYear && y % step === 0) {
       const lbl = el("text", { class: "yr", x: xOf(Date.UTC(y, 6, 1)), y: base + 17, fill: "#8b8f9c", "font-size": 11, "text-anchor": "middle", "data-year": y }, svg);
-      lbl.textContent = W < 1100 ? "'" + String(y).slice(2) : y;
+      lbl.textContent = W >= 1100 || step >= 5 ? y : "'" + String(y).slice(2);
     }
   }
   el("line", { x1: geo.L, x2: W - geo.R, y1: base, y2: base, stroke: "#555" }, svg);
@@ -381,8 +416,10 @@ function renderChart(list) {
   const r = state.range;
   for (const [s, cx, row] of pos) {
     const inRange = !r || (s.t >= r[0] && s.t <= r[1]);
+    const y = base - (row + 1) * PITCH + 1;
+    geo.pos.push([s, cx + CELL / 2, y + CELL / 2]);
     el("rect", {
-      class: "song" + (s.i === state.sel ? " hl" : ""), x: cx, y: base - (row + 1) * PITCH + 1, width: CELL, height: CELL, rx: 1.5,
+      class: "song" + (s.i === state.sel ? " hl" : ""), x: cx, y, width: CELL, height: CELL, rx: 1.5,
       fill: kindColor(s.kind), "fill-opacity": inRange ? 1 : 0.18, "data-i": s.i,
     }, g);
   }
@@ -397,14 +434,27 @@ function renderChart(list) {
 }
 
 const localX = (ev) => ev.clientX - svg.getBoundingClientRect().left;
+// Fingers can't hit a 5px square, so a tap picks the nearest square within reach.
+function nearestSong(ev) {
+  const box = svg.getBoundingClientRect(), x = ev.clientX - box.left, y = ev.clientY - box.top;
+  let best = null, bestD = 14 * 14;
+  for (const [s, cx, cy] of geo.pos) {
+    const d = (cx - x) ** 2 + (cy - y) ** 2;
+    if (d < bestD) { bestD = d; best = s; }
+  }
+  return best;
+}
 let drag = null;
 svg.addEventListener("pointerdown", (ev) => {
-  if (ev.button !== 0 || ev.target.dataset.i !== undefined) return;
+  const touch = ev.pointerType === "touch";
+  if (ev.button !== 0 || (!touch && ev.target.dataset.i !== undefined)) return;
   svg.setPointerCapture(ev.pointerId);
   const x = localX(ev);
   // Pointer capture retargets pointerup to the svg, so remember what was pressed now.
-  drag = { x0: x, year: ev.target.dataset.year, box: el("rect", { x, y: 0, width: 0, height: geo.base, fill: css("--original"), "fill-opacity": 0.12, stroke: css("--original"), "pointer-events": "none" }, svg) };
+  drag = { x0: x, touch, year: ev.target.dataset.year, box: el("rect", { x, y: 0, width: 0, height: geo.base, fill: css("--original"), "fill-opacity": 0.12, stroke: css("--original"), "pointer-events": "none" }, svg) };
 });
+// A vertical swipe hands the gesture to page scrolling (touch-action: pan-y), which cancels the pointer.
+svg.addEventListener("pointercancel", () => { if (drag) { drag.box.remove(); drag = null; } });
 svg.addEventListener("pointermove", (ev) => {
   if (drag) {
     const x = localX(ev);
@@ -412,7 +462,7 @@ svg.addEventListener("pointermove", (ev) => {
     return;
   }
   const i = ev.target.dataset && ev.target.dataset.i;
-  if (i === undefined) { tip.style.display = "none"; return; }
+  if (i === undefined || ev.pointerType === "touch") { tip.style.display = "none"; return; }
   const s = songs[+i];
   tip.innerHTML =
     `<b>${esc(s.title)}</b> <span class="badge" style="background:${kindColor(s.kind)}">${esc(KIND_LABEL[s.kind] || s.kind)}</span><br>` +
@@ -429,15 +479,17 @@ svg.addEventListener("pointermove", (ev) => {
 });
 svg.addEventListener("pointerup", (ev) => {
   if (!drag) return;
-  const x0 = drag.x0, x1 = localX(ev), yr = drag.year;
+  const x0 = drag.x0, x1 = localX(ev), yr = drag.year, touch = drag.touch;
   drag.box.remove(); drag = null;
   if (Math.abs(x1 - x0) >= 4) {
     const a = tOf(Math.min(x0, x1)), b = tOf(Math.max(x0, x1));
     setRange([dayNum(isoDay(a)), dayNum(isoDay(b))]);
     return;
   }
-  // A click: on the axis selects that year; on empty chart space clears the range.
-  if (yr) setRange([Date.UTC(+yr, 0, 1), Date.UTC(+yr, 11, 31)]);
+  // A tap/click: on the axis selects that year; a touch near a square selects it; empty chart space clears the range.
+  const near = touch && !yr && nearestSong(ev);
+  if (near) select(near.i, true);
+  else if (yr) setRange([Date.UTC(+yr, 0, 1), Date.UTC(+yr, 11, 31)]);
   else if (state.range) setRange(null);
 });
 svg.addEventListener("mouseleave", () => (tip.style.display = "none"));
@@ -538,11 +590,12 @@ const SORT = {
   kind: (s) => presentKinds.indexOf(s.kind),
   author: (s) => (s.authorNames[0] || "\uffff").toLowerCase(),
   venue: (s) => s.venue.toLowerCase(),
+  last: (s) => s.lt,
   plays: (s) => s.plays,
 };
 document.querySelectorAll("thead th").forEach((th) => th.addEventListener("click", () => {
   const k = th.dataset.k;
-  state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === "plays" ? -1 : 1 };
+  state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === "plays" || k === "last" ? -1 : 1 };
   renderTable(current);
 }));
 
@@ -564,24 +617,26 @@ function renderTable(list) {
   for (const s of sorted) {
     if (key === "date" && s.date.slice(0, 4) !== year) {
       year = s.date.slice(0, 4);
-      out.push(`<tr class="yr"><td colspan="6">${year}<span>${perYear[year]} debut${perYear[year] === 1 ? "" : "s"}</span></td></tr>`);
+      out.push(`<tr class="yr"><td colspan="7">${year}<span>${perYear[year]} debut${perYear[year] === 1 ? "" : "s"}</span></td></tr>`);
     }
     out.push(
       `<tr class="row${s.i === state.sel ? " sel" : ""}" data-i="${s.i}">` +
       `<td class="date" style="box-shadow:inset 3px 0 ${eraColor(s.era)}" title="${esc(ERA_LABEL[s.era])}">${fmtShort(s.date)}</td>` +
-      `<td class="title"><div class="clip" title="${esc(s.title)}">` +
+      `<td class="title"><div class="tcell">` +
       (s.audio
         ? `<button class="play${isDebutAudio(s) ? "" : " later"}${s.i === playingI ? " on" : ""}" data-play="${s.i}" ` +
           `title="${isDebutAudio(s) ? "Play the debut (archive.org)" : `Play the earliest recording, ${fmtShort(s.audio.date)} (not the debut)`}">▶</button>`
         : `<span class="noplay"></span>`) +
-      `<span class="sw mob" style="background:${kindColor(s.kind)}"></span>${esc(s.title)}</div></td>` +
+      `<div class="tt"><div class="clip" title="${esc(s.title)}"><span class="sw mob" style="background:${kindColor(s.kind)}"></span>${esc(s.title)}</div>` +
+      `<div class="by clip m">${esc(s.authorNames.join(", ") || "no author listed")}</div></div></div></td>` +
       `<td class="kind c-kind"><span class="sw" style="background:${kindColor(s.kind)}"></span> ${esc(KIND_LABEL[s.kind] || s.kind)}</td>` +
-      `<td class="author"><div class="clip" title="${esc(s.authorNames.join(", "))}">${s.authors.length ? esc(s.authorNames.join(", ")) : '<span class="m">—</span>'}</div></td>` +
+      `<td class="author c-author"><div class="clip" title="${esc(s.authorNames.join(", "))}">${s.authors.length ? esc(s.authorNames.join(", ")) : '<span class="m">—</span>'}</div></td>` +
       `<td class="c-venue"><div class="clip" title="${esc(s.venue + (s.place ? ", " + s.place : ""))}">${esc(s.venue)}${s.place ? ` <span class="m">· ${esc(s.place)}</span>` : ""}</div></td>` +
+      `<td class="last c-last" title="${esc(fmt(s.last.date) + " · " + s.last.venue + (s.last.place ? ", " + s.last.place : ""))}">${fmtShort(s.last.date)}</td>` +
       `<td class="num c-plays">${s.plays}</td></tr>`
     );
   }
-  rowsEl.innerHTML = out.join("") || `<tr><td colspan="6" class="empty">No debuts match these filters.</td></tr>`;
+  rowsEl.innerHTML = out.join("") || `<tr><td colspan="7" class="empty">No debuts match these filters.</td></tr>`;
   document.getElementById("count").textContent = `${list.length} of ${songs.length} songs · ${new Set(list.map((s) => s.show)).size} shows`;
 }
 rowsEl.addEventListener("click", (ev) => {
@@ -601,17 +656,28 @@ listPane.addEventListener("keydown", (ev) => {
 
 // ---------- selection + detail ----------
 const detailEl = document.getElementById("detail");
+// Matches the stacked-layout breakpoint, where a selected song's detail opens as a bottom sheet.
+const SHEET = matchMedia("(max-width: 900px)");
 
 function select(i, scrollTable) {
   state.sel = i;
   rowsEl.querySelectorAll("tr.sel").forEach((tr) => tr.classList.remove("sel"));
   svg.querySelectorAll("rect.hl").forEach((r) => r.classList.remove("hl"));
   const tr = rowsEl.querySelector(`tr.row[data-i="${i}"]`);
-  if (tr) { tr.classList.add("sel"); if (scrollTable) tr.scrollIntoView({ block: "nearest" }); }
+  if (tr) {
+    tr.classList.add("sel");
+    if (scrollTable && SHEET.matches) {
+      // Scroll only the list pane: scrollIntoView would also move the page under the sheet.
+      const p = listPane.getBoundingClientRect(), r = tr.getBoundingClientRect();
+      if (r.top < p.top + 30 || r.bottom > p.bottom) listPane.scrollTop += r.top - p.top - (p.height - r.height) / 2;
+    } else if (scrollTable) tr.scrollIntoView({ block: "nearest" });
+  }
   const sq = svg.querySelector(`rect.song[data-i="${i}"]`);
   if (sq) sq.classList.add("hl");
   renderDetail();
+  if (SHEET.matches) detailEl.scrollTop = 0;
 }
+document.getElementById("scrim").addEventListener("click", () => select(null, false));
 
 function songItem(s) {
   return `<li data-i="${s.i}"><span class="sw" style="background:${kindColor(s.kind)}"></span>` +
@@ -647,7 +713,16 @@ function recordingHtml(s) {
     `${s.plays > 1 ? " No later recording has a track titled as this song either." : ""}</div>`;
 }
 
+function lastPlayedHtml(s) {
+  const l = s.last;
+  if (l.show === s.show) return `<span class="m">Not since the debut</span>`;
+  const ago = s.since === 0 ? "at the most recent show" : `${s.since} show${s.since === 1 ? "" : "s"} ago`;
+  return `${fmt(l.date)} <span class="m">· ${ago}</span><br>` +
+    `<a href="${DATA.site}/shows/${esc(l.show)}" target="_blank" rel="noopener">${esc(l.venue)}</a>${l.place ? `<br><span class="m">${esc(l.place)}</span>` : ""}`;
+}
+
 function renderDetail() {
+  document.body.classList.toggle("sheet", state.sel !== null);
   if (state.sel !== null) {
     const s = songs[state.sel];
     const night = byShow.get(s.show).filter((o) => o !== s).sort(byTitle);
@@ -662,6 +737,7 @@ function renderDetail() {
       `<dt>Venue</dt><dd><a href="${DATA.site}/shows/${esc(s.show)}" target="_blank" rel="noopener">${esc(s.venue)}</a>${s.place ? `<br><span class="m">${esc(s.place)}</span>` : ""}</dd>` +
       `<dt>Era</dt><dd><span class="sw" style="background:${eraColor(s.era)}"></span> ${esc(ERA_LABEL[s.era])}${era ? ` <span class="m">· ${esc(era.drummer)}</span>` : ""}</dd>` +
       `<dt>Times played</dt><dd>${s.plays}</dd>` +
+      `<dt>Last played</dt><dd>${lastPlayedHtml(s)}</dd>` +
       `</dl>` +
       recordingHtml(s) +
       (night.length
@@ -711,6 +787,8 @@ detailEl.addEventListener("click", (ev) => {
 const playerEl = document.getElementById("player"), audioEl = document.getElementById("audio");
 const npTitle = document.getElementById("np-title"), npMeta = document.getElementById("np-meta"), npLink = document.getElementById("np-link");
 let playingI = null;
+// The mobile detail sheet docks above the player rather than covering it.
+new ResizeObserver(() => document.documentElement.style.setProperty("--player-h", playerEl.offsetHeight + "px")).observe(playerEl);
 function play(i) {
   const s = songs[i];
   if (!s.audio) return;

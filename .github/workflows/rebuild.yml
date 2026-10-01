@@ -1,0 +1,54 @@
+# Rebuild index.html + songs_first_played.csv from BIP and archive.org once a day, so "last played"
+# (and new debuts / newly uploaded recordings) follow the tour without anyone running build.py.
+name: Rebuild from BIP
+
+on:
+  schedule:
+    - cron: "17 12 * * *" # 12:17 UTC daily: after US shows end and BIP setlists are entered
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      # archive.org item file listings (see archive.py). A fresh key every run saves listings for newly
+      # uploaded items; restore-keys picks up the latest previous save.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/ia
+          key: ia-${{ github.run_id }}
+          restore-keys: ia-
+
+      - run: python build.py
+
+      # index.html embeds the build timestamp, so it differs on every run; the CSV carries every data
+      # field and nothing else, so it only changes when BIP or archive.org actually did.
+      - name: Commit if the data changed
+        run: |
+          if git diff --quiet -- songs_first_played.csv; then
+            echo "No data changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git add index.html songs_first_played.csv
+          git commit -m "Rebuild from BIP $(date -u +%F)"
+          git push
+          # Pushes made with GITHUB_TOKEN don't trigger other workflows; ask Pages to rebuild explicitly.
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" --silent
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -2,10 +2,13 @@
 """Pull every song from the Biscuits Internet Project and build the FIRST TIME PLAYED timeline.
 
 Sources: https://discobiscuits.net/api/songs (one request, full catalog, each song embeds its
-firstPlayedShow + venue), and the archive.org DiscoBiscuits collection for a recording of each
-song, preferring its debut (see archive.py). Outputs, next to this script:
+firstPlayedShow and lastPlayedShow + venues), and the archive.org DiscoBiscuits collection for a
+recording of each song, preferring its debut (see archive.py). Outputs, next to this script:
   index.html               self-contained interactive timeline (audio streams from archive.org)
   songs_first_played.csv   flat export of the same data
+
+Everything is a snapshot of BIP at build time; .github/workflows/rebuild.yml reruns this daily so
+"last played" follows new shows.
 """
 import csv
 import json
@@ -59,6 +62,8 @@ def main() -> None:
             missing.append(s["title"])
             continue
         venue = show.get("venue") or {}
+        last = s.get("lastPlayedShow") or show
+        last_venue = last.get("venue") or {}
         songs.append({
             "title": s["title"],
             "slug": s["slug"],
@@ -73,6 +78,9 @@ def main() -> None:
             "venue": venue.get("name") or "Unknown venue",
             "place": place(venue),
             "plays": s.get("timesPlayed") or 0,
+            "last": {"date": last["date"], "show": last["slug"], "venue": last_venue.get("name") or "Unknown venue",
+                     "place": place(last_venue)},
+            "since": s.get("showsSinceLastPlayed") or 0,
         })
     songs.sort(key=lambda x: (x["date"], x["title"].lower()))
 
@@ -104,12 +112,14 @@ def main() -> None:
     with open(HERE / "songs_first_played.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["song", "type", "authors", "first_played", "era", "venue", "location", "times_played", "show_url", "song_url",
+                    "last_played", "last_venue", "last_location", "last_show_url", "shows_since_last_played",
                     "audio_url", "audio_source", "audio_date"])
         source = {"title": "debut", "setlist": "debut (by setlist position)", "later": "earliest later recording"}
         for x in songs:
             a = x.get("audio")
             w.writerow([x["title"], x["kind"], "; ".join(a_["name"] for a_ in x["authors"]), x["date"], x["era"],
                         x["venue"], x["place"], x["plays"], f"{SITE}/shows/{x['show']}", f"{SITE}/songs/{x['slug']}",
+                        x["last"]["date"], x["last"]["venue"], x["last"]["place"], f"{SITE}/shows/{x['last']['show']}", x["since"],
                         f"https://archive.org/download/{a['id']}/{urllib.parse.quote(a['file'])}" if a else "",
                         source[a["how"]] if a else "", a.get("date", x["date"]) if a else ""])
 
