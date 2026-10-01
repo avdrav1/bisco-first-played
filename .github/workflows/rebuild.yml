@@ -25,13 +25,13 @@ jobs:
         with:
           python-version: "3.x"
 
-      # archive.org item file listings (see archive.py). A fresh key every run saves listings for newly
-      # uploaded items; restore-keys picks up the latest previous save.
+      # archive.org item file listings and BIP performance lists (see archive.py). A fresh key every run
+      # saves what this run added; restore-keys picks up the latest previous save.
       - uses: actions/cache@v4
         with:
-          path: .cache/ia
-          key: ia-${{ github.run_id }}
-          restore-keys: ia-
+          path: .cache
+          key: build-cache-${{ github.run_id }}
+          restore-keys: build-cache-
 
       - run: python build.py
 

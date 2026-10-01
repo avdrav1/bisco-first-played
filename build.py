@@ -85,14 +85,16 @@ def main() -> None:
     songs.sort(key=lambda x: (x["date"], x["title"].lower()))
 
     by_slug = {s["slug"]: s for s in raw if s.get("firstPlayedShow")}
-    audio, recordings = archive.find_audio([
+    audio, latest, recordings = archive.find_audio([
         {"slug": x["slug"], "id": by_slug[x["slug"]]["id"], "title": x["title"], "date": x["date"],
-         "show_id": by_slug[x["slug"]]["firstPlayedShow"]["id"], "plays": x["plays"]}
+         "show_id": by_slug[x["slug"]]["firstPlayedShow"]["id"], "last_show": x["last"]["show"], "plays": x["plays"]}
         for x in songs
     ])
     for x in songs:
         if x["slug"] in audio:
             x["audio"] = audio[x["slug"]]
+        if x["slug"] in latest:
+            x["latest"] = latest[x["slug"]]
 
     fetched = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     payload = {
@@ -113,20 +115,23 @@ def main() -> None:
         w = csv.writer(f)
         w.writerow(["song", "type", "authors", "first_played", "era", "venue", "location", "times_played", "show_url", "song_url",
                     "last_played", "last_venue", "last_location", "last_show_url", "shows_since_last_played",
-                    "audio_url", "audio_source", "audio_date"])
+                    "audio_url", "audio_source", "audio_date", "latest_audio_url", "latest_audio_date"])
         source = {"title": "debut", "setlist": "debut (by setlist position)", "later": "earliest later recording"}
+        ia_url = lambda a: f"https://archive.org/download/{a['id']}/{urllib.parse.quote(a['file'])}"
         for x in songs:
-            a = x.get("audio")
+            a, la = x.get("audio"), x.get("latest")
             w.writerow([x["title"], x["kind"], "; ".join(a_["name"] for a_ in x["authors"]), x["date"], x["era"],
                         x["venue"], x["place"], x["plays"], f"{SITE}/shows/{x['show']}", f"{SITE}/songs/{x['slug']}",
                         x["last"]["date"], x["last"]["venue"], x["last"]["place"], f"{SITE}/shows/{x['last']['show']}", x["since"],
-                        f"https://archive.org/download/{a['id']}/{urllib.parse.quote(a['file'])}" if a else "",
-                        source[a["how"]] if a else "", a.get("date", x["date"]) if a else ""])
+                        ia_url(a) if a else "", source[a["how"]] if a else "", a.get("date", x["date"]) if a else "",
+                        ia_url(la) if la else "", la["date"] if la else ""])
 
     how = {k: sum(1 for a in audio.values() if a["how"] == k) for k in ("title", "setlist", "later")}
     print(f"{len(raw)} songs from API, {len(songs)} with a first-played show, fetched {fetched}")
     print(f"archive.org audio for {len(audio)}: debut by title {how['title']}, debut by setlist position {how['setlist']}, "
           f"earliest later recording {how['later']}")
+    at_last = sum(1 for x in songs if x.get("latest") and x["latest"]["show"] == x["last"]["show"])
+    print(f"latest recording newer than the first clip for {len(latest)} songs, {at_last} of them from the last-played show")
     if missing:
         print(f"no first-played show: {', '.join(missing)}")
 

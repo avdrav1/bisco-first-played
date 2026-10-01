@@ -1,6 +1,6 @@
-"""Find a playable archive.org recording for each song, preferring its debut.
+"""Find playable archive.org recordings for each song: its debut if possible, and its latest version.
 
-Three passes, most trustworthy first; each song keeps the first that succeeds, tagged with `how`:
+Three passes for the debut clip, most trustworthy first; each song keeps the first that succeeds, tagged with `how`:
 
   "title"    a track on the debut show's recording is titled as the song.
   "setlist"  the debut recording has no such track, but BIP's setlist puts the song in a one-track gap
@@ -12,10 +12,16 @@ Three passes, most trustworthy first; each song keeps the first that succeeds, t
 
 No guessing beyond that: a wrong clip is worse than none.
 
-Per-item file listings are cached in .cache/ia/ (items are effectively immutable); delete the
-directory to force a refresh. The collection index and BIP data are fetched fresh on every build.
+A fourth, independent pass finds the "latest" clip: the newest show BIP lists the song at that has a
+recording with a track titled as the song (the "later" rule, walked newest first).
+
+Per-item file listings are cached in .cache/ia/ (items are effectively immutable once their MP3s are
+derived and titled; a listing added in the last 30 days without titled audio is not cached). Each song's BIP performance list is cached
+in .cache/bip/ until its last-played show or play count changes. Delete .cache/ to force a refresh.
+The collection index and the BIP song catalog are fetched fresh on every build.
 """
 import difflib
+import functools
 import json
 import os
 import re
@@ -23,6 +29,7 @@ import tempfile
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 from pathlib import Path
 
 import bip
@@ -30,8 +37,10 @@ import bip
 COLLECTION = "DiscoBiscuits"
 UA = bip.UA
 CACHE = Path(__file__).resolve().parent / ".cache" / "ia"
+PERF_CACHE = CACHE.parent / "bip"
 AUDIO_FORMATS = ("VBR MP3", "MP3", "64Kbps MP3")  # browser-playable derivatives, best first
 WORKERS = 8
+FRESH_DAYS = 30  # an untitled or underived item this new may still be in progress; don't cache it
 
 
 def _get_json(url: str) -> dict:
@@ -54,6 +63,16 @@ def items_by_date() -> dict:
     return out
 
 
+def _write_json(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Written via rename: parallel workers may write the same file, and a reader must never see half a file.
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+@functools.cache  # per build: an uncached listing would otherwise be fetched once per song that walks past it
 def item_tracks(identifier: str) -> list:
     """Playable audio files of one item, in track order: [{file, title, length}]."""
     path = CACHE / f"{identifier}.json"
@@ -68,13 +87,26 @@ def item_tracks(identifier: str) -> list:
             break
     tracks.sort(key=lambda f: (_int(f.get("track")), f["name"]))
     slim = [{"file": f["name"], "title": f.get("title") or "", "length": f.get("length") or ""} for f in tracks]
-    CACHE.mkdir(parents=True, exist_ok=True)
-    # Written via rename: parallel workers may fetch the same item, and a reader must never see half a file.
-    fd, tmp = tempfile.mkstemp(dir=CACHE, suffix=".tmp")
-    with os.fdopen(fd, "w") as f:
-        json.dump(slim, f)
-    os.replace(tmp, path)
+    # A fresh upload may still be deriving its MP3s or awaiting track titles (the 2026-07-03 SPAC items
+    # appeared with every title blank), so leave it uncached and look again next build. Older items that
+    # are still untitled stay that way and are cached like any other.
+    added = str((meta.get("metadata") or {}).get("addeddate") or "")[:10]
+    if any(t["title"] for t in slim) or added < (date.today() - timedelta(days=FRESH_DAYS)).isoformat():
+        _write_json(path, slim)
     return slim
+
+
+def performances(song: dict) -> list:
+    """bip.song_performances, cached until the song's last-played show or play count changes."""
+    key = f"{song['last_show']}|{song['plays']}"
+    path = PERF_CACHE / f"{song['slug']}.json"
+    if path.exists():
+        cached = json.loads(path.read_text())
+        if cached["key"] == key:
+            return cached["perfs"]
+    perfs = bip.song_performances(song["slug"])
+    _write_json(path, {"key": key, "perfs": perfs})
+    return perfs
 
 
 def _safe_tracks(identifier: str):
@@ -207,24 +239,42 @@ def _debut_by_setlist(song: dict, catalog: dict, recording: str) -> dict:
     return _hit(recording, j, t, "setlist")
 
 
+def _perf_hit(song: dict, perf: dict, by_date: dict, how: str) -> dict:
+    """A track titled as the song on any recording of one BIP performance (most downloaded item first)."""
+    for it in by_date.get(perf["date"], []):
+        for n, t in enumerate(_safe_tracks(it["identifier"]) or []):
+            if matches(song["title"], t["title"]):
+                region = perf["state"] if perf["country"] in ("", "United States") else perf["country"]
+                return {**_hit(it["identifier"], n, t, how), "date": perf["date"], "show": perf["show"],
+                        "venue": perf["venue"], "place": ", ".join(p for p in (perf["city"], region) if p)}
+    return None
+
+
 def _earliest_later(song: dict, by_date: dict) -> dict:
     """Pass 3 for one song: walk BIP's performances oldest first, skipping the debut."""
-    for perf in bip.song_performances(song["slug"]):
-        if perf["date"] <= song["date"] or perf["date"] not in by_date:
-            continue
-        for it in by_date[perf["date"]]:  # most downloaded first
-            for n, t in enumerate(_safe_tracks(it["identifier"]) or []):
-                if matches(song["title"], t["title"]):
-                    region = perf["state"] if perf["country"] in ("", "United States") else perf["country"]
-                    return {**_hit(it["identifier"], n, t, "later"), "date": perf["date"], "show": perf["show"],
-                            "venue": perf["venue"], "place": ", ".join(p for p in (perf["city"], region) if p)}
+    for perf in performances(song):
+        if perf["date"] > song["date"]:
+            hit = _perf_hit(song, perf, by_date, "later")
+            if hit:
+                return hit
+    return None
+
+
+def _latest(song: dict, by_date: dict) -> dict:
+    """Latest pass for one song: walk BIP's performances newest first."""
+    for perf in reversed(performances(song)):
+        hit = _perf_hit(song, perf, by_date, "latest")
+        if hit:
+            return hit
     return None
 
 
 def find_audio(songs: list) -> tuple:
-    """songs: [{slug, id, title, date, show_id, plays}] with `date` the debut.
+    """songs: [{slug, id, title, date, show_id, last_show, plays}] with `date` the debut.
 
-    Returns ({song slug: audio dict}, {debut date: identifier of that night's recording})."""
+    Returns ({song slug: debut-preferred audio dict}, {song slug: latest audio dict}, {debut date: identifier
+    of that night's recording}). A song's latest clip is omitted when it comes from the same show as its
+    first clip, i.e. when no newer recording exists."""
     by_date = items_by_date()
     catalog = {s["id"]: s["title"] for s in songs}
 
@@ -254,4 +304,16 @@ def find_audio(songs: list) -> tuple:
     todo = [s for s in songs if s["slug"] not in found and s["plays"] > 1]
     with ThreadPoolExecutor(WORKERS) as ex:
         found.update({slug: hit for slug, hit in ex.map(later_pass, todo) if hit})
-    return found, recordings
+
+    def latest_pass(s):
+        try:
+            return s["slug"], _latest(s, by_date)
+        except Exception as e:
+            print(f"latest-recording search skipped {s['slug']}: {e}")
+            return s["slug"], None
+
+    first_date = {s["slug"]: found[s["slug"]].get("date", s["date"]) for s in songs if s["slug"] in found}
+    todo = [s for s in songs if s["plays"] > 1]
+    with ThreadPoolExecutor(WORKERS) as ex:
+        latest = {slug: hit for slug, hit in ex.map(latest_pass, todo) if hit and hit["date"] != first_date.get(slug)}
+    return found, latest, recordings

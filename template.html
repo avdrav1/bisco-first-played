@@ -31,7 +31,7 @@
   .tcell { display: flex; align-items: center; min-width: 0; }
   .tcell .tt { flex: 1; min-width: 0; }
   .touch { display: none; }
-  col.c-date, col.c-last { width: 82px; } col.c-title { width: 27%; } col.c-kind { width: 118px; } col.c-author { width: 22%; } col.c-plays { width: 60px; }
+  col.c-date { width: 82px; } col.c-last { width: 104px; } col.c-title { width: 27%; } col.c-kind { width: 118px; } col.c-author { width: 22%; } col.c-plays { width: 60px; }
   select, input[type=search] { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font: inherit; }
   select { max-width: 240px; }
   #range { display: none; border-color: var(--original); }
@@ -624,7 +624,7 @@ function renderTable(list) {
       `<td class="date" style="box-shadow:inset 3px 0 ${eraColor(s.era)}" title="${esc(ERA_LABEL[s.era])}">${fmtShort(s.date)}</td>` +
       `<td class="title"><div class="tcell">` +
       (s.audio
-        ? `<button class="play${isDebutAudio(s) ? "" : " later"}${s.i === playingI ? " on" : ""}" data-play="${s.i}" ` +
+        ? `<button class="play${isDebutAudio(s) ? "" : " later"}${playing === clipKey(s.i, "audio") ? " on" : ""}" data-play="${s.i}" ` +
           `title="${isDebutAudio(s) ? "Play the debut (archive.org)" : `Play the earliest recording, ${fmtShort(s.audio.date)} (not the debut)`}">▶</button>`
         : `<span class="noplay"></span>`) +
       `<div class="tt"><div class="clip" title="${esc(s.title)}"><span class="sw mob" style="background:${kindColor(s.kind)}"></span>${esc(s.title)}</div>` +
@@ -632,7 +632,12 @@ function renderTable(list) {
       `<td class="kind c-kind"><span class="sw" style="background:${kindColor(s.kind)}"></span> ${esc(KIND_LABEL[s.kind] || s.kind)}</td>` +
       `<td class="author c-author"><div class="clip" title="${esc(s.authorNames.join(", "))}">${s.authors.length ? esc(s.authorNames.join(", ")) : '<span class="m">—</span>'}</div></td>` +
       `<td class="c-venue"><div class="clip" title="${esc(s.venue + (s.place ? ", " + s.place : ""))}">${esc(s.venue)}${s.place ? ` <span class="m">· ${esc(s.place)}</span>` : ""}</div></td>` +
-      `<td class="last c-last" title="${esc(fmt(s.last.date) + " · " + s.last.venue + (s.last.place ? ", " + s.last.place : ""))}">${fmtShort(s.last.date)}</td>` +
+      `<td class="last c-last" title="${esc(fmt(s.last.date) + " · " + s.last.venue + (s.last.place ? ", " + s.last.place : ""))}"><div class="tcell">` +
+      (s.latest
+        ? `<button class="play later${playing === clipKey(s.i, "latest") ? " on" : ""}" data-play="${s.i}" data-which="latest" ` +
+          `title="Play the latest recording on archive.org, ${fmtShort(s.latest.date)}${s.latest.show === s.last.show ? "" : " (the last-played show isn't on archive.org)"}">▶</button>`
+        : `<span class="noplay"></span>`) +
+      `${fmtShort(s.last.date)}</div></td>` +
       `<td class="num c-plays">${s.plays}</td></tr>`
     );
   }
@@ -641,7 +646,7 @@ function renderTable(list) {
 }
 rowsEl.addEventListener("click", (ev) => {
   const btn = ev.target.closest("[data-play]");
-  if (btn) { play(+btn.dataset.play); return; }
+  if (btn) { play(+btn.dataset.play, btn.dataset.which || "audio"); return; }
   const tr = ev.target.closest("tr.row");
   if (tr) select(+tr.dataset.i, false);
 });
@@ -685,19 +690,26 @@ function songItem(s) {
     (s.audio ? `<span style="color:var(${isDebutAudio(s) ? "--original" : "--muted"})" title="${isDebutAudio(s) ? "Debut recording available" : "Later recording available"}">▶</span>` : "") + `</li>`;
 }
 
+function trackLine(a) {
+  return `archive.org track ${a.n}: “${esc(a.track)}”${a.length ? ` · ${esc(a.length)}` : ""} · ` +
+    `<a href="${iaDetails(a.id)}" target="_blank" rel="noopener">recording ↗</a>`;
+}
+
+function showLine(a) {
+  return `<a href="${DATA.site}/shows/${esc(a.show)}" target="_blank" rel="noopener">${esc(a.venue)}</a>${a.place ? `, ${esc(a.place)}` : ""}`;
+}
+
 function recordingHtml(s) {
   const a = s.audio, rec = DATA.recordings[s.date];
-  const playing = playingI === s.i;
-  const trackLine = a && `archive.org track ${a.n}: “${esc(a.track)}”${a.length ? ` · ${esc(a.length)}` : ""} · ` +
-    `<a href="${iaDetails(a.id)}" target="_blank" rel="noopener">recording ↗</a>`;
+  const on = playing === clipKey(s.i, "audio");
   const debutGap = rec
     ? `The debut show is on archive.org, but none of its tracks is titled “${esc(s.title)}”; it may sit inside a medley or an untitled jam ` +
       `(<a href="${iaDetails(rec)}" target="_blank" rel="noopener">browse it ↗</a>).`
     : `The debut show isn't on archive.org.`;
   if (a && a.how !== "later") {
     return `<h3>Debut recording</h3>` +
-      `<button class="playbig" data-act="play">${playing ? "❚❚ Pause / resume" : "▶ Play the debut"}</button>` +
-      `<div class="rec m">${trackLine}</div>` +
+      `<button class="playbig" data-act="play">${on ? "❚❚ Pause / resume" : "▶ Play the debut"}</button>` +
+      `<div class="rec m">${trackLine(a)}</div>` +
       (a.how === "setlist"
         ? `<div class="rec m">Found by setlist position: the recording doesn't title this track as the song, but it sits exactly where BIP's setlist puts it.</div>`
         : "");
@@ -705,12 +717,30 @@ function recordingHtml(s) {
   if (a) {
     return `<h3>Earliest recording on archive.org</h3>` +
       `<div class="m" style="margin-bottom:8px">Not the debut. ${debutGap}</div>` +
-      `<button class="playbig later" data-act="play">${playing ? "❚❚ Pause / resume" : `▶ Play ${fmt(a.date)}`}</button>` +
-      `<div class="rec m"><a href="${DATA.site}/shows/${esc(a.show)}" target="_blank" rel="noopener">${esc(a.venue)}</a>${a.place ? `, ${esc(a.place)}` : ""}</div>` +
-      `<div class="rec m">${trackLine}</div>`;
+      `<button class="playbig later" data-act="play">${on ? "❚❚ Pause / resume" : `▶ Play ${fmt(a.date)}`}</button>` +
+      `<div class="rec m">${showLine(a)}</div>` +
+      `<div class="rec m">${trackLine(a)}</div>`;
   }
   return `<h3>Debut recording</h3><div class="m">${rec ? debutGap : "No recording of this show on archive.org."}` +
     `${s.plays > 1 ? " No later recording has a track titled as this song either." : ""}</div>`;
+}
+
+function latestHtml(s) {
+  const a = s.latest;
+  if (!a) {
+    // Played since the clip above, yet nothing newer turned up: say so rather than leave it ambiguous.
+    const first = s.audio && (s.audio.show || s.show);
+    return first && first !== s.last.show
+      ? `<h3>Latest recording</h3><div class="m">The recording above is the newest on archive.org with a track titled as this song.</div>`
+      : "";
+  }
+  const on = playing === clipKey(s.i, "latest");
+  return `<h3>Latest recording on archive.org</h3>` +
+    (a.show === s.last.show ? "" :
+      `<div class="m" style="margin-bottom:8px">Last played ${fmt(s.last.date)}, but no recording of that show on archive.org has a track titled as this song.</div>`) +
+    `<button class="playbig later" data-act="play" data-which="latest">${on ? "❚❚ Pause / resume" : `▶ Play ${fmt(a.date)}`}</button>` +
+    `<div class="rec m">${showLine(a)}</div>` +
+    `<div class="rec m">${trackLine(a)}</div>`;
 }
 
 function lastPlayedHtml(s) {
@@ -740,6 +770,7 @@ function renderDetail() {
       `<dt>Last played</dt><dd>${lastPlayedHtml(s)}</dd>` +
       `</dl>` +
       recordingHtml(s) +
+      latestHtml(s) +
       (night.length
         ? `<h3>Also debuted that night (${night.length})</h3><ul class="items">${night.map(songItem).join("")}</ul>`
         : `<h3>Also debuted that night</h3><div class="m">Nothing else. This was the only debut at this show.</div>`);
@@ -775,7 +806,8 @@ function renderDetail() {
 }
 detailEl.addEventListener("click", (ev) => {
   if (ev.target.closest("[data-act=close]")) { state.sel = null; select(null, false); return; }
-  if (ev.target.closest("[data-act=play]")) { play(state.sel); return; }
+  const playBtn = ev.target.closest("[data-act=play]");
+  if (playBtn) { play(state.sel, playBtn.dataset.which || "audio"); return; }
   const li = ev.target.closest("li");
   if (!li) return;
   if (li.dataset.author) setAuthor(li.dataset.author);
@@ -786,33 +818,37 @@ detailEl.addEventListener("click", (ev) => {
 // One persistent <audio> outside the re-rendered panes, so playback survives selection and filter changes.
 const playerEl = document.getElementById("player"), audioEl = document.getElementById("audio");
 const npTitle = document.getElementById("np-title"), npMeta = document.getElementById("np-meta"), npLink = document.getElementById("np-link");
-let playingI = null;
+let playing = null; // clipKey of the loaded clip
+// A song can have two clips: "audio" (its debut, or failing that its earliest recording) and "latest".
+const clipKey = (i, which) => `${i}:${which}`;
 // The mobile detail sheet docks above the player rather than covering it.
 new ResizeObserver(() => document.documentElement.style.setProperty("--player-h", playerEl.offsetHeight + "px")).observe(playerEl);
-function play(i) {
-  const s = songs[i];
-  if (!s.audio) return;
-  if (playingI === i) { if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause(); return; }
-  playingI = i;
-  audioEl.src = iaFile(s.audio);
-  const debut = isDebutAudio(s);
-  npTitle.textContent = debut ? `${s.title} — debut, ${fmt(s.date)}` : `${s.title} — ${fmt(s.audio.date)} (not the debut)`;
-  npMeta.textContent = (debut ? `${s.venue}${s.place ? ", " + s.place : ""}` : `${s.audio.venue}${s.audio.place ? ", " + s.audio.place : ""}`) +
-    ` · archive.org track ${s.audio.n}: ${s.audio.track}`;
-  npLink.href = iaDetails(s.audio.id);
+function play(i, which) {
+  const s = songs[i], a = s[which];
+  if (!a) return;
+  const k = clipKey(i, which);
+  if (playing === k) { if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause(); return; }
+  playing = k;
+  audioEl.src = iaFile(a);
+  const debut = which === "audio" && isDebutAudio(s);
+  npTitle.textContent = debut ? `${s.title} — debut, ${fmt(s.date)}`
+    : `${s.title} — ${fmt(a.date)} (${which === "latest" ? "latest recording" : "not the debut"})`;
+  npMeta.textContent = (debut ? `${s.venue}${s.place ? ", " + s.place : ""}` : `${a.venue}${a.place ? ", " + a.place : ""}`) +
+    ` · archive.org track ${a.n}: ${a.track}`;
+  npLink.href = iaDetails(a.id);
   playerEl.hidden = false;
   document.body.classList.add("playing");
   audioEl.play().catch(() => {}); // if the browser blocks autoplay, the visible controls still work
   markPlaying();
 }
 function markPlaying() {
-  rowsEl.querySelectorAll(".play").forEach((b) => b.classList.toggle("on", +b.dataset.play === playingI));
+  rowsEl.querySelectorAll(".play").forEach((b) => b.classList.toggle("on", clipKey(b.dataset.play, b.dataset.which || "audio") === playing));
   if (state.sel !== null) renderDetail();
 }
-audioEl.addEventListener("error", () => { if (playingI !== null) npMeta.textContent = "archive.org didn't serve this file. Try the full show link."; });
+audioEl.addEventListener("error", () => { if (playing !== null) npMeta.textContent = "archive.org didn't serve this file. Try the full show link."; });
 document.getElementById("np-close").addEventListener("click", () => {
   audioEl.pause(); audioEl.removeAttribute("src"); audioEl.load();
-  playingI = null; playerEl.hidden = true; document.body.classList.remove("playing");
+  playing = null; playerEl.hidden = true; document.body.classList.remove("playing");
   markPlaying();
 });
 
